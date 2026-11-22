@@ -100,6 +100,7 @@ double r2(double v) => (v * 100).roundToDouble() / 100;
 String nf(num v) => v == v.roundToDouble() ? v.toInt().toString() : v.toString();
 
 const kJobTypes = ['Full-time', 'Part-time', 'Contract', 'Internship'];
+
 const kBranchOffices = [
   'Headquarters (HQ)',
   'Tech Hub (San Francisco)',

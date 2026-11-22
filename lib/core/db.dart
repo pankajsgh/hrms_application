@@ -485,4 +485,19 @@ class Db {
       await db.close();
     }
   }
+
+  static Future<void> resetDatabase() async {
+    if (db.isOpen) {
+      await db.close();
+    }
+
+    final directory = await getApplicationSupportDirectory();
+    final path = p.join(directory.path, databaseName);
+
+    await deleteDatabase(path);
+
+    await init();
+
+    print('Database deleted and recreated successfully');
+  }
 }

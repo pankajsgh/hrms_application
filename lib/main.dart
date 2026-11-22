@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hrms/core/db.dart';
+import 'package:hrms/core/fill_demo_data.dart';
 
 import 'features/auth/presentation/login_page.dart';
 
@@ -7,6 +8,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Db.init();
   // FillDemoData.seedDemoData();
+  // await Db.clearAllData();
+  // await Db.resetDatabase();
   runApp(const HrmsApp());
 }
 
