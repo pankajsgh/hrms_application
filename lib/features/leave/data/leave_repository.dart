@@ -1,14 +1,11 @@
-
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/db.dart';
-import 'package:hrms/core/repo.dart';
 import 'package:hrms/core/session.dart';
 import 'package:hrms/core/storage_config.dart';
+import 'package:hrms/data/datasources/local_datasource.dart';
+import 'package:hrms/data/repositories/repository_impl.dart';
 
 class LeaveRepository {
-  bool get _isApiOnly =>
-      StorageConfig.mode == StorageMode.apiOnly;
-
   bool get _isLocal =>
       StorageConfig.mode != StorageMode.apiOnly;
 
@@ -35,11 +32,7 @@ class LeaveRepository {
       List<Object?> args,
       ) async {
     if (!_isLocal) return 0;
-
-    final rows = await Db.db.rawQuery(sql, args);
-    if (rows.isEmpty || rows.first.isEmpty) return 0;
-
-    return _number(rows.first.values.first);
+    return LocalDatasource.dbCount(sql, args);
   }
 
   // ============================================================
@@ -47,7 +40,7 @@ class LeaveRepository {
   // ============================================================
 
   Future<List<Rec>> leaveTypes() {
-    return queryOrLocal(
+    return Repo.queryOrLocal(
       'leave_types',
       {},
           () => Db.db.query(
@@ -76,7 +69,7 @@ class LeaveRepository {
 
     final paid = _number(data['paid']);
 
-    await saveData(
+    await Repo.saveData(
       'leave_types',
       id != null ? {'id': '$id'} : {},
       {
@@ -101,7 +94,7 @@ class LeaveRepository {
       }
     }
 
-    await deleteData(
+    await Repo.deleteData(
       'leave_types',
       {'id': '$id'},
     );
@@ -114,7 +107,7 @@ class LeaveRepository {
   // ============================================================
 
   Future<List<Rec>> holidays(int year) {
-    return queryOrLocal(
+    return Repo.queryOrLocal(
       'holidays',
       {'year': '$year'},
           () => Db.db.query(
@@ -129,7 +122,7 @@ class LeaveRepository {
   Future<List<Rec>> fetchHolidays(int year) => holidays(year);
 
   Future<Set<String>> holidaySet() async {
-    final rows = await queryOrLocal(
+    final rows = await Repo.queryOrLocal(
       'holidays',
       {},
           () => Db.db.query('holidays'),
@@ -142,7 +135,7 @@ class LeaveRepository {
   }
 
   Future<List<Rec>> upcomingHolidays(int limit) {
-    return queryOrLocal(
+    return Repo.queryOrLocal(
       'upcoming_holidays',
       {
         'from': _date(DateTime.now()),
@@ -191,7 +184,7 @@ class LeaveRepository {
       }
     }
 
-    await saveData(
+    await Repo.saveData(
       'holidays',
       {},
       {
@@ -206,7 +199,7 @@ class LeaveRepository {
   Future<void> deleteHoliday(int id) async {
     if (id <= 0) throw Exception('Invalid holiday');
 
-    await deleteData(
+    await Repo.deleteData(
       'holidays',
       {'id': '$id'},
     );
@@ -217,7 +210,7 @@ class LeaveRepository {
   // ============================================================
 
   Future<List<Rec>> balances(int emp, int year) {
-    return queryOrLocal(
+    return Repo.queryOrLocal(
       'balances',
       {
         'employee_id': '$emp',
@@ -384,7 +377,7 @@ class LeaveRepository {
 
       // API-only mode expects the backend to enforce its own
       // employee, overlap and balance validation as well.
-      await saveData(
+      await Repo.saveData(
         'leaves',
         {},
         {
@@ -420,7 +413,7 @@ class LeaveRepository {
       'pendingOnly': pendingOnly.toString(),
     };
 
-    return queryOrLocal(
+    return Repo.queryOrLocal(
       'leaves',
       queryMap,
           () async {
@@ -454,7 +447,7 @@ class LeaveRepository {
               ...employees.map((row) => _number(row['id'])),
             ];
 
-            where.add('l.employee_id IN ${dbIn(ids)}');
+            where.add('l.employee_id IN ${LocalDatasource.dbIn(ids)}');
             where.add('l.employee_id != ?');
             args.add(empId);
           } else {
@@ -533,7 +526,7 @@ class LeaveRepository {
       throw Exception('Only pending leave requests can be cancelled');
     }
 
-    await deleteData(
+    await Repo.deleteData(
       'leaves',
       {'id': '$id'},
     );
@@ -579,7 +572,7 @@ class LeaveRepository {
 
     final decision = approve ? 'Approved' : 'Rejected';
 
-    await saveData(
+    await Repo.saveData(
       'leaves',
       {'id': '$id'},
       {
@@ -630,7 +623,7 @@ class LeaveRepository {
         }
       }
 
-      await saveData(
+      await Repo.saveData(
         'attendance',
         {
           'employee_id': '$employeeId',

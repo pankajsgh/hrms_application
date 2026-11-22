@@ -1,19 +1,20 @@
 import 'dart:io';
+import 'package:hrms/data/datasources/local_datasource.dart';
+import 'package:hrms/data/repositories/repository_impl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/db.dart';
-import 'package:hrms/core/repo.dart';
 import '../../employees/data/employees_repository.dart';
 
 class DocumentsRepository {
   Future<List<Rec>> documents() async {
-    return queryOrLocal('documents', {}, () async {
+    return Repo.queryOrLocal('documents', {}, () async {
       final ids = await scopeIds();
       return Db.db.rawQuery(
           'SELECT d.*, e.name AS emp_name FROM documents d '
           'JOIN employees e ON e.id = d.employee_id '
-          '${ids == null ? '' : 'WHERE d.employee_id IN ${dbIn(ids)}'} '
+          '${ids == null ? '' : 'WHERE d.employee_id IN ${LocalDatasource.dbIn(ids)}'} '
           'ORDER BY d.id DESC');
     });
   }
@@ -28,7 +29,7 @@ class DocumentsRepository {
     final dest = p.join(folder.path,
         '${DateTime.now().millisecondsSinceEpoch}_${p.basename(source)}');
     await File(source).copy(dest);
-    await saveData('documents', {}, {
+    await Repo.saveData('documents', {}, {
       'employee_id': emp,
       'title': title,
       'category': category,
@@ -40,7 +41,7 @@ class DocumentsRepository {
   Future<void> deleteDocument(Rec doc) async {
     final f = File(doc.s('file_path'));
     if (await f.exists()) await f.delete();
-    await deleteData('documents', {'id': '${doc['id']}'});
+    await Repo.deleteData('documents', {'id': '${doc['id']}'});
   }
 
   Future<List<Rec>> scopeEmployees() => EmployeesRepository().scopeEmployees();

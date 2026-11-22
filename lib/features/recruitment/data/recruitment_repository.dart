@@ -3,11 +3,12 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/db.dart';
-import 'package:hrms/core/repo.dart';
 import 'package:hrms/core/session.dart';
+import 'package:hrms/data/datasources/local_datasource.dart';
+import 'package:hrms/data/repositories/repository_impl.dart';
 
 class RecruitmentRepository {
-  Future<List<Rec>> jobs() => queryOrLocal('jobs', {}, () => Db.db.rawQuery(
+  Future<List<Rec>> jobs() => Repo.queryOrLocal('jobs', {}, () => Db.db.rawQuery(
       'SELECT j.*, '
       '(SELECT COUNT(*) FROM candidates c WHERE c.job_id = j.id) AS cands, '
       '(SELECT name FROM employees x WHERE x.id = j.created_by) AS creator_name '
@@ -19,7 +20,7 @@ class RecruitmentRepository {
   Future<int> createJob(Rec data) {
     final admin = Session.isAdmin;
     final now = ymd(DateTime.now());
-    return saveData('jobs', {}, {
+    return Repo.saveData('jobs', {}, {
       ...data,
       'created_by': Session.empId,
       'created_on': now,
@@ -35,7 +36,7 @@ class RecruitmentRepository {
       v['approval'] = 'Pending';
       v['reject_reason'] = null;
     }
-    await saveData('jobs', {'id': '$id'}, v);
+    await Repo.saveData('jobs', {'id': '$id'}, v);
   }
 
   Future<void> decideJob(int id, bool approve, String reason) async {
@@ -56,10 +57,10 @@ class RecruitmentRepository {
     final cands =
         await Db.db.query('candidates', columns: ['id'], where: 'job_id = ?', whereArgs: [id]);
     for (final c in cands) {
-      await deleteData('interviews', {'candidate_id': '${c['id']}'});
+      await Repo.deleteData('interviews', {'candidate_id': '${c['id']}'});
     }
-    await deleteData('candidates', {'job_id': '$id'});
-    await deleteData('jobs', {'id': '$id'});
+    await Repo.deleteData('candidates', {'job_id': '$id'});
+    await Repo.deleteData('jobs', {'id': '$id'});
   }
 
   Future<List<Rec>> candidates({int? jobId, String q = ''}) {
@@ -67,7 +68,7 @@ class RecruitmentRepository {
       if (jobId != null) 'job_id': '$jobId',
       'q': q,
     };
-    return queryOrLocal('candidates', queryMap, () async {
+    return Repo.queryOrLocal('candidates', queryMap, () async {
       final w = <String>[];
       final a = <Object?>[ymd(DateTime.now())];
       if (jobId != null) {
@@ -93,7 +94,7 @@ class RecruitmentRepository {
       candidates(jobId: jobId, q: q);
 
   Future<void> saveCandidate(Rec data, {int? id}) async {
-    await saveData('candidates', id != null ? {'id': '$id'} : {}, data);
+    await Repo.saveData('candidates', id != null ? {'id': '$id'} : {}, data);
   }
 
   Future<void> setStage(int id, String stage) => Db.db.update(
@@ -101,8 +102,8 @@ class RecruitmentRepository {
       where: 'id = ?', whereArgs: [id]);
 
   Future<void> deleteCandidate(int id) async {
-    await deleteData('interviews', {'candidate_id': '$id'});
-    await deleteData('candidates', {'id': '$id'});
+    await Repo.deleteData('interviews', {'candidate_id': '$id'});
+    await Repo.deleteData('candidates', {'id': '$id'});
   }
 
   Future<void> attachResume(int id, String source) async {
@@ -127,7 +128,7 @@ class RecruitmentRepository {
           where: 'id = ?',
           whereArgs: [candidateId]);
 
-  Future<List<Rec>> interviews() => queryOrLocal('interviews', {}, () => Db.db.rawQuery(
+  Future<List<Rec>> interviews() => Repo.queryOrLocal('interviews', {}, () => Db.db.rawQuery(
       'SELECT i.*, c.name AS cand_name, j.title AS job_title, '
       '(SELECT name FROM employees x WHERE x.id = i.interviewer_id) AS interviewer_name '
       'FROM interviews i JOIN candidates c ON c.id = i.candidate_id '
@@ -136,7 +137,7 @@ class RecruitmentRepository {
   Future<List<Rec>> fetchInterviews() => interviews();
 
   Future<List<Rec>> candidateInterviews(int candidateId) =>
-      queryOrLocal('candidate_interviews', {'candidate_id': '$candidateId'}, () => Db.db.rawQuery(
+      Repo.queryOrLocal('candidate_interviews', {'candidate_id': '$candidateId'}, () => Db.db.rawQuery(
           'SELECT i.*, (SELECT name FROM employees x WHERE x.id = i.interviewer_id) '
           'AS interviewer_name FROM interviews i WHERE i.candidate_id = ? '
           'ORDER BY i.scheduled_at DESC',
@@ -147,13 +148,13 @@ class RecruitmentRepository {
 
   Future<void> saveInterview(Rec data, {int? id}) async {
     if (id == null) {
-      await saveData('interviews', {}, data);
+      await Repo.saveData('interviews', {}, data);
       await Db.db.rawUpdate(
           "UPDATE candidates SET stage = 'Interview', stage_changed_on = ? "
           "WHERE id = ? AND stage IN ('Applied','Screening')",
           [ymd(DateTime.now()), data['candidate_id']]);
     } else {
-      await saveData('interviews', {'id': '$id'}, data);
+      await Repo.saveData('interviews', {'id': '$id'}, data);
     }
   }
 
@@ -161,21 +162,21 @@ class RecruitmentRepository {
       Db.db.update('interviews', {'result': result, 'feedback': feedback},
           where: 'id = ?', whereArgs: [id]);
 
-  Future<void> deleteInterview(int id) => deleteData('interviews', {'id': '$id'});
+  Future<void> deleteInterview(int id) => Repo.deleteData('interviews', {'id': '$id'});
 
   Future<Map<String, int>> recruitmentStats() async {
     final now = DateTime.now();
     return {
-      'openJobs': await dbCount(
+      'openJobs': await LocalDatasource.dbCount(
           "SELECT COUNT(*) FROM jobs WHERE approval = 'Approved' AND status = 'Open'"),
       'pendingJobs':
-          await dbCount("SELECT COUNT(*) FROM jobs WHERE approval = 'Pending'"),
-      'candidates': await dbCount(
+          await LocalDatasource.dbCount("SELECT COUNT(*) FROM jobs WHERE approval = 'Pending'"),
+      'candidates': await LocalDatasource.dbCount(
           "SELECT COUNT(*) FROM candidates WHERE stage NOT IN ('Hired','Rejected')"),
-      'interviews': await dbCount(
+      'interviews': await LocalDatasource.dbCount(
           "SELECT COUNT(*) FROM interviews WHERE result = 'Scheduled' AND scheduled_at >= ?",
           [ymd(now)]),
-      'hired': await dbCount(
+      'hired': await LocalDatasource.dbCount(
           "SELECT COUNT(*) FROM candidates WHERE stage = 'Hired' AND substr(stage_changed_on, 1, 7) = ?",
           [monthKey(now.year, now.month)]),
     };

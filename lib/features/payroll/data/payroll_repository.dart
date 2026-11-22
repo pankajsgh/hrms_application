@@ -1,6 +1,7 @@
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/db.dart';
-import 'package:hrms/core/repo.dart';
+import 'package:hrms/core/month_calulator.dart';
+import 'package:hrms/data/repositories/repository_impl.dart';
 import '../../employees/data/employees_repository.dart';
 import '../../leave/data/leave_repository.dart';
 
@@ -10,7 +11,7 @@ class PayrollRepository {
       if (month != null) 'month': month,
       if (empId != null) 'employee_id': '$empId',
     };
-    return queryOrLocal('payroll', queryMap, () async {
+    return Repo.queryOrLocal('payroll', queryMap, () async {
       final w = <String>[];
       final a = <Object?>[];
       if (month != null) {
@@ -53,7 +54,7 @@ class PayrollRepository {
       final pf = r2(basic * e.d('pf_percent') / 100);
       final other = gross == 0 ? 0.0 : e.d('other_deduction');
       final net = r2((gross - pf - other).clamp(0.0, double.infinity).toDouble());
-      await saveData('payroll', {}, {
+      await Repo.saveData('payroll', {}, {
         'employee_id': e['id'],
         'month': month,
         'working_days': c.working,

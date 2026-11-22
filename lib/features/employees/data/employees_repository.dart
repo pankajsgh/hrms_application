@@ -1,14 +1,15 @@
-
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/db.dart';
-import 'package:hrms/core/repo.dart';
+import 'package:hrms/data/datasources/local_datasource.dart';
+import 'package:hrms/data/repositories/repository_impl.dart';
 
 class EmployeesRepository {
 
   Future<List<Rec>> employees({
     String q = '',
     bool activeOnly = false,
-  }) async {
+  }) async
+  {
     final search = q.trim();
 
     final queryMap = {
@@ -16,7 +17,10 @@ class EmployeesRepository {
       'activeOnly': activeOnly.toString(),
     };
 
-    return queryOrLocal('employees', queryMap, () async {
+    return Repo.queryOrLocal(
+        'employees',
+         queryMap,
+            () async {
       final where = <String>[];
       final args = <Object?>[];
 
@@ -64,19 +68,20 @@ class EmployeesRepository {
   }
 
   Future<String> nextCode() async {
-    final count = await dbCount(
+    final count = await LocalDatasource.dbCount(
       'SELECT COUNT(*) FROM employees',
     );
 
     return 'EMP${(count + 1).toString().padLeft(3, '0')}';
   }
 
+
   Future<int> saveEmployee(Rec data, {int? id,}) async {
     final query = id == null
         ? <String, String>{}
         : {'id': id.toString()};
 
-    return saveData(
+    return Repo.saveData(
       'employees',
       query,
       data,

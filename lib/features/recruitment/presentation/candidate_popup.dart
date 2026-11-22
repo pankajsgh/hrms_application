@@ -160,7 +160,7 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
 
     OutlineInputBorder border(Color color, [double width = 1]) {
       return OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(6),
         borderSide: BorderSide(color: color, width: width),
       );
     }
@@ -171,18 +171,18 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
       prefixIcon: icon == null ? null : Icon(icon, size: 18),
       isDense: true,
       filled: true,
-      fillColor: cs.surfaceContainerLowest,
+      fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 12,
         vertical: 13,
       ),
       labelStyle: const TextStyle(fontSize: 12.5),
       hintStyle: TextStyle(fontSize: 12, color: cs.outline),
-      border: border(cs.outlineVariant),
-      enabledBorder: border(cs.outlineVariant),
-      focusedBorder: border(cs.primary, 1.5),
+      border: border(Colors.grey.shade300),
+      enabledBorder: border(Colors.grey.shade300),
+      focusedBorder: border(cs.primary, 1.2),
       errorBorder: border(cs.error),
-      focusedErrorBorder: border(cs.error, 1.5),
+      focusedErrorBorder: border(cs.error, 1.2),
     );
   }
 
@@ -213,13 +213,12 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
     required ValueChanged<String?> onChanged,
     IconData? icon,
   }) {
-    return DropdownButtonFormField<String>(
+    return CustomDropdown<String>(
+      label: label,
       value: value,
-      isExpanded: true,
-      borderRadius: BorderRadius.circular(12),
-      decoration: _decoration(label, icon: icon),
       items: items,
       onChanged: onChanged,
+      icon: icon,
     );
   }
 

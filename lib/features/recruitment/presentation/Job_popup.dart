@@ -150,7 +150,7 @@
       final cs = Theme.of(context).colorScheme;
       OutlineInputBorder border(Color color, [double width = 1]) =>
           OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(6),
             borderSide: BorderSide(color: color, width: width),
           );
 
@@ -160,15 +160,15 @@
         prefixIcon: icon == null ? null : Icon(icon, size: 18),
         isDense: true,
         filled: true,
-        fillColor: cs.surfaceContainerLowest,
+        fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         labelStyle: const TextStyle(fontSize: 12.5),
         hintStyle: TextStyle(fontSize: 12, color: cs.outline),
-        border: border(cs.outlineVariant),
-        enabledBorder: border(cs.outlineVariant),
-        focusedBorder: border(cs.primary, 1.6),
+        border: border(Colors.grey.shade300),
+        enabledBorder: border(Colors.grey.shade300),
+        focusedBorder: border(cs.primary, 1.2),
         errorBorder: border(cs.error),
-        focusedErrorBorder: border(cs.error, 1.6),
+        focusedErrorBorder: border(cs.error, 1.2),
       );
     }
 
@@ -430,12 +430,10 @@
                             subtitle: 'Change the current job opening status',
                             icon: Icons.toggle_on_outlined,
                             children: [
-                              DropdownButtonFormField<String>(
+                              CustomDropdown<String>(
+                                label: 'Status',
                                 value: _status,
-                                isExpanded: true,
-                                borderRadius: BorderRadius.circular(12),
-                                decoration: _decoration('Status',
-                                    icon: Icons.flag_outlined),
+                                icon: Icons.flag_outlined,
                                 items: const [
                                   DropdownMenuItem(
                                       value: 'Open', child: Text('Open')),

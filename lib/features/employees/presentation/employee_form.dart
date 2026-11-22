@@ -180,7 +180,7 @@ Future<int?> showEmployeeForm(
                   suffixStyle: const TextStyle(fontSize: 11),
                   isDense: true,
                   filled: true,
-                  fillColor: theme.colorScheme.surface,
+                  fillColor: Colors.white,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 11,
                     vertical: 0,
@@ -190,32 +190,32 @@ Future<int?> showEmployeeForm(
                     maxHeight: 42,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(9),
-                    borderSide:  BorderSide(
-                      color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: BorderSide(
+                      color: Colors.grey.shade300,
                     ),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(9),
-                    borderSide:  BorderSide(
-                      color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: BorderSide(
+                      color: Colors.grey.shade300,
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(6),
                     borderSide: BorderSide(
                       color: theme.colorScheme.primary,
                       width: 1.2,
                     ),
                   ),
                   errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(6),
                     borderSide: BorderSide(
                       color: theme.colorScheme.error,
                     ),
                   ),
                   focusedErrorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(6),
                     borderSide: BorderSide(
                       color: theme.colorScheme.error,
                       width: 1.2,

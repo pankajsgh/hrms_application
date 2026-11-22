@@ -245,9 +245,8 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
     required Color color,
   }) {
     return Container(
-      width: 190,
-      constraints: const BoxConstraints(minHeight: 82),
-      padding: const EdgeInsets.all(13),
+      width: 100,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
@@ -256,8 +255,8 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
       child: Row(
         children: [
           Container(
-            height: 40,
-            width: 40,
+            height: 38,
+            width: 38,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(10),
@@ -280,13 +279,13 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 19,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -301,16 +300,23 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
   Widget _buildKpiRow() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final availableWidth = constraints.maxWidth;
-        final cardWidth = availableWidth >= 900
-            ? (availableWidth - 36) / 4
-            : availableWidth >= 440
-            ? (availableWidth - 12) / 2
-            : availableWidth;
+        final width = constraints.maxWidth;
+
+        // Responsive columns
+        final int columns = width >= 1000
+            ? 4 // Windows / Large desktop
+            : width >= 600
+            ? 2 // Tablet / Small window
+            : 2; // Mobile
+
+        const spacing = 12.0;
+
+        final cardWidth =
+            (width - (spacing * (columns - 1))) / columns;
 
         return Wrap(
-          spacing: 12,
-          runSpacing: 12,
+          spacing: spacing,
+          runSpacing: spacing,
           children: [
             SizedBox(
               width: cardWidth,
@@ -325,7 +331,8 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
               width: cardWidth,
               child: _kpiCard(
                 title: 'Total Hours',
-                value: '${_controller.totalHoursWorked.toStringAsFixed(1)} h',
+                value:
+                '${_controller.totalHoursWorked.toStringAsFixed(1)} h',
                 icon: Icons.schedule,
                 color: Colors.purple,
               ),
@@ -344,7 +351,8 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
               width: cardWidth,
               child: _kpiCard(
                 title: 'Avg Attendance',
-                value: '${_controller.avgAttendanceRate.toStringAsFixed(1)}%',
+                value:
+                '${_controller.avgAttendanceRate.toStringAsFixed(1)}%',
                 icon: Icons.check_circle_outline,
                 color: Colors.green,
               ),
@@ -354,7 +362,6 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
       },
     );
   }
-
   // ------------------------------------------------------------
   // TABLES
   // ------------------------------------------------------------
@@ -568,8 +575,8 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
               },
             ),
             SizedBox(
-              width: compact ? constraints.maxWidth : 270,
-              child: TextField(
+              width: compact ? constraints.maxWidth-100 : 270,
+              child:TextField(
                 controller: _searchController,
                 onChanged: _onSearch,
                 decoration: InputDecoration(
@@ -590,13 +597,21 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade400),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade600, width: 1.5),
+                  ),
                 ),
               ),
             ),
             OutlinedButton.icon(
               onPressed: _refresh,
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Refresh'),
+              label: compact ? const SizedBox.shrink():const Text('Refresh')
             ),
           ],
         );
@@ -691,7 +706,7 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
             'Reports & Analytics',
             actions: [_buildExportMenu()],
           ),
-          const SizedBox(height: 12),
+          // const SizedBox(height: 10),
 
           _buildToolbar(),
           const SizedBox(height: 16),

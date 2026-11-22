@@ -306,11 +306,9 @@ class _MyLeaveTab extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: cs.surfaceContainerHighest.withValues(
-                          alpha: 0.4,
-                        ),
-                        borderRadius: BorderRadius.circular(9),
-                        border: Border.all(color: cs.outlineVariant),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.grey.shade300),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,12 +418,25 @@ class _MyLeaveTab extends StatelessWidget {
                           maxLines: 4,
                           textCapitalization: TextCapitalization.sentences,
                           style: const TextStyle(fontSize: 13),
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             hintText: 'Enter reason for leave',
-                            hintStyle: TextStyle(fontSize: 12),
-                            prefixIcon: Icon(Icons.notes_outlined, size: 18),
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.all(10),
+                            hintStyle: const TextStyle(fontSize: 12),
+                            prefixIcon: const Icon(Icons.notes_outlined, size: 18),
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6),
+                              borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.2),
+                            ),
+                            contentPadding: const EdgeInsets.all(10),
                           ),
                         ),
                       ],

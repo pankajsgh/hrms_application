@@ -32,7 +32,7 @@ class PerformanceFeaturePageState extends State<PerformanceFeaturePage> {
   Widget build(BuildContext context) {
     return PageBox(
       child: Column(children: [
-        const Header('Performance (MVVM)'),
+        const Header('Performance'),
         Expanded(
           child: ListenableBuilder(
             listenable: _controller,

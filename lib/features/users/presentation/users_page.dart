@@ -98,7 +98,7 @@ class UsersFeaturePageState extends State<UsersFeaturePage> {
   Widget build(BuildContext context) {
     return PageBox(
       child: Column(children: [
-        Header('Users & Access (MVVM)', actions: [
+        Header('Users & Access', actions: [
           FilledButton.icon(
               onPressed: _add,
               icon: const Icon(Icons.person_add_alt),

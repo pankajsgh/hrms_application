@@ -93,7 +93,7 @@ class SpecialDaysFeaturePageState extends State<SpecialDaysFeaturePage> {
 
     return PageBox(
       child: Column(children: [
-        Header('Special days (MVVM)', actions: [add]),
+        Header('Special days ', actions: [add]),
         Align(
           alignment: Alignment.centerLeft,
           child: SingleChildScrollView(

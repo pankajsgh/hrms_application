@@ -1,6 +1,7 @@
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/db.dart';
-import 'package:hrms/core/repo.dart';
+import 'package:hrms/core/month_calulator.dart';
+import 'package:hrms/data/repositories/repository_impl.dart';
 import '../../employees/data/employees_repository.dart';
 import '../../leave/data/leave_repository.dart';
 
@@ -9,7 +10,7 @@ class ReportsRepository {
     final emps = await EmployeesRepository().scopeEmployees();
     final hs = await LeaveRepository().holidaySet();
     final month = monthKey(y, m);
-    final all = await queryOrLocal(
+    final all = await Repo.queryOrLocal(
       'attendance_summary',
       {'month': month},
       () => Db.db.query('attendance',
@@ -38,7 +39,7 @@ class ReportsRepository {
       monthSummary(y, m);
 
   Future<List<Rec>> attendanceDetail(int y, int m) {
-    return queryOrLocal(
+    return Repo.queryOrLocal(
       'attendance_detail',
       {'month': monthKey(y, m)},
       () => Db.db.rawQuery(

@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -41,6 +40,7 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
   OverlayEntry? _overlayEntry;
 
   bool _isOpen = false;
+  bool _isHovered = false;
   int _highlightedIndex = -1;
 
   List<DropdownMenuItem<T>> get _filteredItems {
@@ -225,10 +225,10 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
                     : Alignment.topLeft,
                 offset: Offset(0, openAbove ? -6 : 6),
                 child: Material(
-                  color: theme.colorScheme.surface,
+                  color: Colors.white,
                   elevation: 5,
                   shadowColor: Colors.black.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                   clipBehavior: Clip.antiAlias,
                   child: Container(
                     constraints: BoxConstraints(
@@ -236,10 +236,9 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
                     ),
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: theme.colorScheme.outlineVariant
-                            .withValues(alpha: 0.55),
+                        color: Colors.grey.shade300,
                       ),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: StatefulBuilder(
                       builder: (context, setPopupState) {
@@ -280,9 +279,7 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
                                     ),
                                     isDense: true,
                                     filled: true,
-                                    fillColor: theme.colorScheme
-                                        .surfaceContainerHighest
-                                        .withValues(alpha: 0.35),
+                                    fillColor: Colors.white,
                                     contentPadding:
                                     const EdgeInsets.symmetric(
                                       horizontal: 12,
@@ -290,21 +287,25 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
                                     ),
                                     border: OutlineInputBorder(
                                       borderRadius:
-                                      BorderRadius.circular(9),
-                                      borderSide: BorderSide.none,
+                                      BorderRadius.circular(6),
+                                      borderSide: BorderSide(
+                                        color: Colors.grey.shade300,
+                                      ),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius:
-                                      BorderRadius.circular(9),
-                                      borderSide: BorderSide.none,
+                                      BorderRadius.circular(6),
+                                      borderSide: BorderSide(
+                                        color: Colors.grey.shade300,
+                                      ),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius:
-                                      BorderRadius.circular(9),
+                                      BorderRadius.circular(6),
                                       borderSide: BorderSide(
                                         color:
                                         theme.colorScheme.primary,
-                                        width: 1,
+                                        width: 1.2,
                                       ),
                                     ),
                                   ),
@@ -345,7 +346,7 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
                                     ),
                                     child: InkWell(
                                       borderRadius:
-                                      BorderRadius.circular(8),
+                                      BorderRadius.circular(6),
                                       onTap: () =>
                                           _selectItem(item.value),
                                       child: AnimatedContainer(
@@ -369,7 +370,7 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
                                               : Colors.transparent,
                                           borderRadius:
                                           BorderRadius.circular(
-                                            8,
+                                            6,
                                           ),
                                         ),
                                         child: Row(
@@ -431,77 +432,90 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              widget.label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-
-            const SizedBox(height: 7),
-
-            InkWell(
-              onTap: _toggleDropdown,
-              borderRadius: BorderRadius.circular(11),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                height: 46,
-                padding: const EdgeInsets.symmetric(horizontal: 13),
-                decoration: BoxDecoration(
-                  color: widget.enabled
-                      ? theme.colorScheme.surface
-                      : theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(11),
-                  border: Border.all(
-                    color: _isOpen
-                        ? theme.colorScheme.primary.withValues(alpha: 0.65)
-                        : theme.colorScheme.outlineVariant
-                        .withValues(alpha: 0.55),
-                    width: _isOpen ? 1.3 : 0.8,
-                  ),
+            if (widget.label.isNotEmpty) ...[
+              Text(
+                widget.label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface,
                 ),
-                child: Row(
-                  children: [
-                    if (widget.icon != null) ...[
-                      Icon(
-                        widget.icon,
-                        size: 19,
-                        color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 7),
+            ],
+
+            MouseRegion(
+              onEnter: (_) => setState(() => _isHovered = true),
+              onExit: (_) => setState(() => _isHovered = false),
+              child: InkWell(
+                onTap: _toggleDropdown,
+                borderRadius: BorderRadius.circular(6),
+                hoverColor: Colors.transparent,
+                highlightColor: Colors.transparent,
+                splashColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  height: 46,
+                  padding: const EdgeInsets.symmetric(horizontal: 13),
+                  decoration: BoxDecoration(
+                    color: !widget.enabled
+                        ? theme.colorScheme.surfaceContainerHighest
+                        : _isHovered
+                            ? theme.colorScheme.surfaceContainerHighest
+                                .withValues(alpha: 0.35)
+                            : Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: _isOpen || _isHovered
+                          ? theme.colorScheme.primary
+                          : Colors.grey.shade300,
+                      width: _isOpen || _isHovered ? 1.2 : 0.8,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      if (widget.icon != null) ...[
+                        Icon(
+                          widget.icon,
+                          size: 19,
+                          color: _isOpen || _isHovered
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+
+                      Expanded(
+                        child: selected == null
+                            ? Text(
+                                widget.hint ?? 'Select ${widget.label}',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              )
+                            : DefaultTextStyle(
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                                child: selected.child,
+                              ),
                       ),
-                      const SizedBox(width: 10),
+
+                      AnimatedRotation(
+                        turns: _isOpen ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 180),
+                        child: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 22,
+                          color: _isOpen || _isHovered
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                     ],
-
-                    Expanded(
-                      child: selected == null
-                          ? Text(
-                        widget.hint ?? 'Select ${widget.label}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: theme.colorScheme
-                              .onSurfaceVariant,
-                        ),
-                      )
-                          : DefaultTextStyle(
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                        child: selected.child,
-                      ),
-                    ),
-
-                    AnimatedRotation(
-                      turns: _isOpen ? 0.5 : 0,
-                      duration: const Duration(milliseconds: 180),
-                      child: Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: 22,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),

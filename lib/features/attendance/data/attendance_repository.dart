@@ -1,7 +1,7 @@
+import 'package:hrms/data/datasources/local_datasource.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/db.dart';
-import 'package:hrms/core/repo.dart';
 
 class AttendanceRepository {
   Future<List<Rec>> dayAttendance(String date) async {
@@ -11,7 +11,7 @@ class AttendanceRepository {
         'a.check_out, a.note FROM employees e '
         'LEFT JOIN attendance a ON a.employee_id = e.id AND a.date = ? '
         "WHERE e.status = 'Active'"
-        "${ids == null ? '' : ' AND e.id IN ${dbIn(ids)}'} "
+        "${ids == null ? '' : ' AND e.id IN ${LocalDatasource.dbIn(ids)}'} "
         'ORDER BY e.name COLLATE NOCASE',
         [date]);
   }

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:hrms/comman_widget/customer_dropdown.dart';
 import 'package:hrms/core/ui.dart';
 import 'package:hrms/features/attendance/data/attendance_repository.dart';
 
@@ -389,21 +390,14 @@ class AllEmployeesAttendanceViewState
                       _dialogLabel('ATTENDANCE STATUS'),
                       const SizedBox(height: 7),
 
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedStatus,
-                        decoration: InputDecoration(
-                          prefixIcon: Icon(
-                            _statusIcon(selectedStatus),
-                            size: 18,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          isDense: true,
-                        ),
+                      CustomDropdown<String>(
+                        label: 'Attendance Status',
+                        value: selectedStatus,
+                        icon: _statusIcon(selectedStatus),
+                        hint: 'Select status',
                         items: [
                           for (final status in kStatuses)
-                            DropdownMenuItem(
+                            DropdownMenuItem<String>(
                               value: status,
                               child: Text(
                                 status,
@@ -460,8 +454,15 @@ class AllEmployeesAttendanceViewState
                             child: Icon(Icons.notes_rounded, size: 18),
                           ),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
                           ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
                           isDense: true,
                         ),
                       ),
@@ -574,8 +575,15 @@ class AllEmployeesAttendanceViewState
           onPressed: controller.clear,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(6),
+          borderSide: BorderSide(color: Colors.grey.shade400),
         ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(6),
+          borderSide: BorderSide(color: Colors.grey.shade400),
+        ),
+        filled: true,
+        fillColor: Colors.white,
         isDense: true,
       ),
     );

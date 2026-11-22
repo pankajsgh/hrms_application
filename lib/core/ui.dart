@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:hrms/comman_widget/customer_dropdown.dart';
 
 import 'common.dart';
 
@@ -155,7 +156,7 @@ class PageBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
       padding:
-          EdgeInsets.all(MediaQuery.of(context).size.width < 800 ? 12 : 24),
+          EdgeInsets.all(MediaQuery.of(context).size.width < 800 ? 12 : 16),
       child: child);
 }
 
@@ -454,29 +455,42 @@ class _FormDialogState extends State<_FormDialog> {
   Widget _field(F f) {
     final dec = InputDecoration(
       labelText: f.required ? '${f.label} *' : f.label,
-      border: const OutlineInputBorder(),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 1.2),
+      ),
       isDense: true,
+      filled: true,
+      fillColor: Colors.white,
     );
     String? req(String? v) =>
         f.required && (v == null || v.trim().isEmpty) ? 'Required' : null;
     Widget w;
     switch (f.type) {
       case 'dropdown':
-        w = DropdownButtonFormField<String>(
+        final options = f.options ?? {};
+        w = CustomDropdown<String>(
+          label: f.required ? '${f.label} *' : f.label,
           value: _dd[f.key],
-          decoration: dec,
-          isExpanded: true,
+          searchText: (id) => options[id] ?? id,
+          hint: 'Select ${f.label}',
           items: [
             if (!f.required)
               const DropdownMenuItem<String>(
                   value: '', child: Text('— none —')),
-            for (final e in f.options!.entries)
+            for (final e in options.entries)
               DropdownMenuItem<String>(value: e.key, child: Text(e.value)),
           ],
           onChanged: (v) =>
               setState(() => _dd[f.key] = (v == null || v.isEmpty) ? null : v),
-          validator: (v) =>
-              f.required && (v == null || v.isEmpty) ? 'Required' : null,
         );
         break;
       case 'date':

@@ -61,7 +61,9 @@ class FillDemoData {
       ];
 
       for (int i = 0; i < 10; i++) {
-        final id = await txn.insert('employees', {
+        final id = await txn.insert(
+            'employees',
+            {
           'code': 'EMP${(i + 1).toString().padLeft(3, '0')}',
           'name': [
             'Rahul Sharma',

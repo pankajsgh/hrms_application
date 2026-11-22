@@ -666,7 +666,7 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
           padding: EdgeInsets.zero,
           child: Column(children: [
             Container(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.10),
                 border: Border(bottom: BorderSide(color: color, width: 2.5)),

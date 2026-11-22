@@ -1,11 +1,11 @@
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/db.dart';
-import 'package:hrms/core/repo.dart';
 import 'package:hrms/core/session.dart';
+import 'package:hrms/data/repositories/repository_impl.dart';
 import '../../employees/data/employees_repository.dart';
 
 class SpecialDaysRepository {
-  Future<List<Rec>> specialDays() => queryOrLocal('special_days', {}, () => Db.db.rawQuery(
+  Future<List<Rec>> specialDays() => Repo.queryOrLocal('special_days', {}, () => Db.db.rawQuery(
       'SELECT s.*, e.name AS emp_name FROM special_days s '
       'JOIN employees e ON e.id = s.employee_id '
       'ORDER BY e.name COLLATE NOCASE, s.date'));
@@ -14,17 +14,17 @@ class SpecialDaysRepository {
 
   Future<void> saveSpecialDay(Rec data, {int? id}) async {
     if (id == null) {
-      await saveData('special_days', {}, {
+      await Repo.saveData('special_days', {}, {
         ...data,
         'created_by': Session.empId,
         'created_on': ymd(DateTime.now()),
       });
     } else {
-      await saveData('special_days', {'id': '$id'}, data);
+      await Repo.saveData('special_days', {'id': '$id'}, data);
     }
   }
 
-  Future<void> deleteSpecialDay(int id) => deleteData('special_days', {'id': '$id'});
+  Future<void> deleteSpecialDay(int id) => Repo.deleteData('special_days', {'id': '$id'});
 
   DateTime _occurrence(DateTime d, int year) {
     final last = DateTime(year, d.month + 1, 0).day;

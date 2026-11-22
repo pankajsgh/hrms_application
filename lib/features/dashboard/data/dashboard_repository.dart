@@ -1,7 +1,7 @@
 
 import 'package:hrms/core/common.dart';
-import 'package:hrms/core/repo.dart';
 import 'package:hrms/core/session.dart';
+import 'package:hrms/data/datasources/local_datasource.dart';
 
 import '../../leave/data/leave_repository.dart';
 import '../../special_days/data/special_days_repository.dart';
@@ -35,19 +35,19 @@ class DashboardRepository {
     }
 
     final employeeFilter =
-    ids == null ? '' : ' AND employee_id IN ${dbIn(ids)}';
+    ids == null ? '' : ' AND employee_id IN ${LocalDatasource.dbIn(ids)}';
 
     // ----------------------------------------------------------
     // EMPLOYEES
     // ----------------------------------------------------------
 
     final employees = ids == null
-        ? await dbCount(
+        ? await LocalDatasource.dbCount(
       "SELECT COUNT(*) FROM employees WHERE status = 'Active'",
     )
-        : await dbCount(
+        : await LocalDatasource.dbCount(
       "SELECT COUNT(*) FROM employees "
-          "WHERE status = 'Active' AND id IN ${dbIn(ids)}",
+          "WHERE status = 'Active' AND id IN ${LocalDatasource.dbIn(ids)}",
     );
 
     // ----------------------------------------------------------
@@ -57,9 +57,9 @@ class DashboardRepository {
 
     final attendanceEmployeeFilter = ids == null
         ? ''
-        : ' AND a.employee_id IN ${dbIn(ids)}';
+        : ' AND a.employee_id IN ${LocalDatasource.dbIn(ids)}';
 
-    final present = await dbCount(
+    final present = await LocalDatasource.dbCount(
       "SELECT COUNT(DISTINCT a.employee_id) "
           "FROM attendance a "
           "INNER JOIN employees e ON e.id = a.employee_id "
@@ -70,7 +70,7 @@ class DashboardRepository {
       [today],
     );
 
-    final onLeave = await dbCount(
+    final onLeave = await LocalDatasource.dbCount(
       "SELECT COUNT(DISTINCT a.employee_id) "
           "FROM attendance a "
           "INNER JOIN employees e ON e.id = a.employee_id "
@@ -81,7 +81,7 @@ class DashboardRepository {
       [today],
     );
 
-    final absent = await dbCount(
+    final absent = await LocalDatasource.dbCount(
       "SELECT COUNT(DISTINCT a.employee_id) "
           "FROM attendance a "
           "INNER JOIN employees e ON e.id = a.employee_id "
@@ -101,7 +101,7 @@ class DashboardRepository {
         ? ' AND employee_id != ${Session.empId}'
         : '';
 
-    final pending = await dbCount(
+    final pending = await LocalDatasource.dbCount(
       "SELECT COUNT(*) FROM leaves "
           "WHERE status = 'Pending'"
           "$employeeFilter"
@@ -121,28 +121,28 @@ class DashboardRepository {
     // ----------------------------------------------------------
 
     if (Session.isAdmin || Session.isHr) {
-      final jobsListed = await dbCount(
+      final jobsListed = await LocalDatasource.dbCount(
         'SELECT COUNT(*) FROM jobs',
       );
 
-      final openJobs = await dbCount(
+      final openJobs = await LocalDatasource.dbCount(
         "SELECT COUNT(*) FROM jobs "
             "WHERE approval = 'Approved' AND status = 'Open'",
       );
 
-      final closedJobs = await dbCount(
+      final closedJobs = await LocalDatasource.dbCount(
         "SELECT COUNT(*) FROM jobs WHERE status = 'Closed'",
       );
 
-      final pendingJobs = await dbCount(
+      final pendingJobs = await LocalDatasource.dbCount(
         "SELECT COUNT(*) FROM jobs WHERE approval = 'Pending'",
       );
 
-      final candidates = await dbCount(
+      final candidates = await LocalDatasource.dbCount(
         'SELECT COUNT(*) FROM candidates',
       );
 
-      final interviewsToday = await dbCount(
+      final interviewsToday = await LocalDatasource.dbCount(
         "SELECT COUNT(*) FROM interviews "
             "WHERE date(scheduled_at) = ?",
         [today],
@@ -171,7 +171,7 @@ class DashboardRepository {
       ];
 
       for (final stage in stages) {
-        final count = await dbCount(
+        final count = await LocalDatasource.dbCount(
           'SELECT COUNT(*) FROM candidates WHERE stage = ?',
           [stage],
         );
