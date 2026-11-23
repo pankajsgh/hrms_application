@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/session.dart';
+import 'package:hrms/domain/entities/special_day_entity.dart';
 
 import '../../special_days/presentation/special_days_page.dart'
     show specialIcon;
@@ -33,10 +34,6 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
     super.dispose();
   }
 
-  // ============================================================
-  // HELPERS
-  // ============================================================
-
   bool get _isManagement =>
       Session.isAdmin || Session.isHr || Session.isLead;
 
@@ -52,8 +49,10 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
 
   String get _greeting {
     final hour = DateTime.now().hour;
+
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
+
     return 'Good evening';
   }
 
@@ -61,6 +60,7 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
     if (Session.isAdmin) return 'Here is your company overview.';
     if (Session.isHr) return 'Here is your HR overview.';
     if (Session.isLead) return 'Here is your team overview.';
+
     return 'Here is your personal overview.';
   }
 
@@ -90,10 +90,7 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 17,
-        vertical: 15,
-      ),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -126,7 +123,7 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
                   '$_role  •  ${DateFormat('EEEE, dd MMM yyyy').format(DateTime.now())}',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 11,
+                    fontSize: 11.5,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -142,8 +139,8 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
           ),
           const SizedBox(width: 10),
           Container(
-            width: 43,
-            height: 43,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(11),
@@ -151,7 +148,7 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
             child: const Icon(
               Icons.dashboard_rounded,
               color: Colors.white,
-              size: 23,
+              size: 24,
             ),
           ),
         ],
@@ -160,51 +157,47 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
   }
 
   // ============================================================
-  // SECTION TITLE
+  // COMMON SECTION TITLE
   // ============================================================
 
-  Widget _sectionTitle(
-      String title) {
+  Widget _sectionTitle(String title) {
     final theme = Theme.of(context);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-            ),
-          ),
-        ],
+      child: Text(
+        title,
+        style: theme.textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+          fontSize: 14.5,
+        ),
       ),
     );
   }
 
   // ============================================================
-  // COMMON SURFACE
+  // COMMON CARD
   // ============================================================
 
   Widget _surface({
     required Widget child,
-    EdgeInsets padding = const EdgeInsets.all(12),
+    EdgeInsets padding = const EdgeInsets.all(16),
   }) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
-    return Container(
-      width: double.infinity,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(
-          color: theme.dividerColor.withValues(alpha: 0.14),
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: cs.outlineVariant.withValues(alpha: 0.6),
         ),
       ),
-      child: child,
+      child: Padding(
+        padding: padding,
+        child: child,
+      ),
     );
   }
 
@@ -217,58 +210,77 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
     required String label,
     required IconData icon,
     required Color color,
+    VoidCallback? onTap,
   }) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
-    return _surface(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 9,
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: cs.outlineVariant.withValues(alpha: 0.6),
+        ),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 18,
-            ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 12,
           ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${_count(keyName)}',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 20,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontSize: 10,
-                  ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 20,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_count(keyName)}',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 22,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
+
+  // ============================================================
+  // STAT GRID
+  // ============================================================
 
   Widget _statGrid(List<Widget> children) {
     return LayoutBuilder(
@@ -283,7 +295,8 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
             ? 3
             : 2;
 
-        const gap = 9.0;
+        const gap = 10.0;
+
         final itemWidth =
             (width - gap * (columns - 1)) / columns;
 
@@ -306,20 +319,21 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
   // ============================================================
 
   Widget _buildEmployeeOverview() {
-    if (!_isManagement) return const SizedBox.shrink();
-
-
+    if (!_isManagement) {
+      return const SizedBox.shrink();
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle(
-          "Today Overview",
-        ),
+        _sectionTitle('Today Overview'),
+
         _statGrid([
           _statCard(
             keyName: 'employees',
-            label: Session.isLead && !Session.isAdmin && !Session.isHr
+            label: Session.isLead &&
+                !Session.isAdmin &&
+                !Session.isHr
                 ? 'My Team'
                 : 'Active Employees',
             icon: Icons.people_alt_rounded,
@@ -355,7 +369,9 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
   }
 
   // ============================================================
-  // RECRUITMENT HIGHLIGHTS
+  // RECRUITMENT HIGHLIGHT
+  // IMPORTANT: No Expanded inside this method.
+  // The parent Row handles Expanded.
   // ============================================================
 
   Widget _recruitmentHighlight({
@@ -365,61 +381,62 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
     required IconData icon,
     required Color color,
   }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(13),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  icon,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '$value',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Text(
-              title,
-              style: const TextStyle(
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 12,
+      ),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
                 color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+                size: 22,
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.78),
-                fontSize: 10,
+              const SizedBox(width: 12),
+              Text(
+                '$value',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.8),
+              fontSize: 10.5,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   // ============================================================
-  // JOB STATUS
+  // JOB STATUS ROW
   // ============================================================
 
   Widget _jobStatusRow({
@@ -435,7 +452,7 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
         : 0.0;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 11),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Column(
         children: [
           Row(
@@ -453,7 +470,7 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
                 child: Text(
                   label,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 11,
+                    fontSize: 11.5,
                   ),
                 ),
               ),
@@ -461,7 +478,7 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
                 '$value',
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w800,
-                  fontSize: 11,
+                  fontSize: 11.5,
                 ),
               ),
             ],
@@ -471,64 +488,7 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
               value: progress,
-              minHeight: 5,
-              backgroundColor:
-              theme.colorScheme.surfaceContainerHighest,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // CANDIDATE PIPELINE
-  // ============================================================
-
-  Widget _candidatePipelineRow({
-    required String label,
-    required String keyName,
-    required Color color,
-    required int total,
-  }) {
-    final theme = Theme.of(context);
-    final value = _count(keyName);
-
-    final progress = total > 0
-        ? (value / total).clamp(0.0, 1.0).toDouble()
-        : 0.0;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-              Text(
-                '$value',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 11,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 5,
+              minHeight: 6,
               backgroundColor:
               theme.colorScheme.surfaceContainerHighest,
               color: color,
@@ -548,199 +508,9 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
       return const SizedBox.shrink();
     }
 
-    final jobsListed = _count('jobsListed');
-    final openJobs = _count('openJobs');
-    final closedJobs = _count('closedJobs');
-    final pendingJobs = _count('pendingJobs');
-    final candidates = _count('candidates');
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _sectionTitle(
-          'Recruitment overview',
-        ),
-
-        Row(
-          children: [
-            _recruitmentHighlight(
-              title: 'Jobs Listed',
-              subtitle: 'All job records',
-              value: jobsListed,
-              icon: Icons.work_outline_rounded,
-              color: const Color(0xFF3157B7),
-            ),
-            const SizedBox(width: 10),
-            _recruitmentHighlight(
-              title: 'Candidates',
-              subtitle: 'Registered candidates',
-              value: candidates,
-              icon: Icons.groups_rounded,
-              color: const Color(0xFF087E72),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 10),
-
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 850;
-
-            final jobCard = _surface(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _sectionTitle(
-                    'Current Job status',
-                  ),
-                  _jobStatusRow(
-                    label: 'Open Jobs',
-                    value: openJobs,
-                    color: Colors.green,
-                    total: jobsListed,
-                  ),
-                  _jobStatusRow(
-                    label: 'Closed Jobs',
-                    value: closedJobs,
-                    color: Colors.orange,
-                    total: jobsListed,
-                  ),
-                  _jobStatusRow(
-                    label: 'Pending Approval',
-                    value: pendingJobs,
-                    color: Colors.deepOrange,
-                    total: jobsListed,
-                  ),
-                ],
-              ),
-            );
-
-            final pipelineCard = _surface(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _sectionTitle(
-                    'Candidate Pipeline',
-                  ),
-                  _candidatePipelineRow(
-                    label: 'Applied',
-                    keyName: 'candidateApplied',
-                    color: Colors.blue,
-                    total: candidates,
-                  ),
-                  _candidatePipelineRow(
-                    label: 'Screening',
-                    keyName: 'candidateScreening',
-                    color: Colors.purple,
-                    total: candidates,
-                  ),
-                  _candidatePipelineRow(
-                    label: 'Interview',
-                    keyName: 'candidateInterview',
-                    color: Colors.orange,
-                    total: candidates,
-                  ),
-                  _candidatePipelineRow(
-                    label: 'Offered',
-                    keyName: 'candidateOffered',
-                    color: Colors.teal,
-                    total: candidates,
-                  ),
-                  _candidatePipelineRow(
-                    label: 'Hired',
-                    keyName: 'candidateHired',
-                    color: Colors.green,
-                    total: candidates,
-                  ),
-                  _candidatePipelineRow(
-                    label: 'Rejected',
-                    keyName: 'candidateRejected',
-                    color: Colors.red,
-                    total: candidates,
-                  ),
-                ],
-              ),
-            );
-
-            if (wide) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: jobCard),
-                  const SizedBox(width: 10),
-                  Expanded(child: pipelineCard),
-                ],
-              );
-            }
-
-            return Column(
-              children: [
-                jobCard,
-                const SizedBox(height: 10),
-                pipelineCard,
-              ],
-            );
-          },
-        ),
-
-        const SizedBox(height: 10),
-
-        _surface(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 13,
-            vertical: 11,
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.calendar_month_rounded,
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Today's Interviews",
-                      style: Theme.of(context).textTheme.bodyMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Interviews scheduled for today',
-                      style: Theme.of(context).textTheme.bodySmall
-                          ?.copyWith(
-                        fontSize: 10,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                '${_count('interviewsToday')}',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 23,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+    return _RecruitmentReportSection(
+      controller: _controller,
+      widgetRef: this,
     );
   }
 
@@ -748,19 +518,18 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
   // SPECIAL DAYS
   // ============================================================
 
-  Widget _specialRow(Rec item) {
+  Widget _specialRow(SpecialDayEntity item) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
-    final kind = _value(item, 'kind');
-    final title = _value(item, 'title');
-    final employee = _value(item, 'emp_name');
+    final kind = _value(item.toMap(), 'kind');
+    final title = item.title;
+    final employee = item.empName ?? '';
 
-    final date = _value(item, 'next').isNotEmpty
-        ? _value(item, 'next')
-        : _value(item, 'date');
+    final date =
+    (item.next ?? '').isNotEmpty ? item.next! : item.date;
 
-    final years = _value(item, 'years');
+    final years = item.years?.toString() ?? '';
 
     final details = [
       if (employee.isNotEmpty) employee,
@@ -769,23 +538,23 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
     ].join(' • ');
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               color: colors.tertiaryContainer.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(9),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               specialIcon(kind),
               color: colors.tertiary,
-              size: 17,
+              size: 18,
             ),
           ),
-          const SizedBox(width: 9),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -794,7 +563,7 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
                   title.isEmpty ? kind : title,
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.w700,
-                    fontSize: 11,
+                    fontSize: 12,
                   ),
                 ),
                 if (details.isNotEmpty) ...[
@@ -803,7 +572,7 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
                     details,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colors.onSurfaceVariant,
-                      fontSize: 10,
+                      fontSize: 11,
                     ),
                   ),
                 ],
@@ -820,9 +589,8 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle(
-            'Upcoming Special Days',
-          ),
+          _sectionTitle('Upcoming Special Days'),
+
           if (_controller.specialDays.isEmpty)
             _emptyMessage('No upcoming special days.')
           else
@@ -853,12 +621,12 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
     } catch (_) {}
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
           Container(
-            width: 39,
-            height: 39,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: colors.primaryContainer.withValues(alpha: 0.55),
               borderRadius: BorderRadius.circular(10),
@@ -884,20 +652,20 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
               ],
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               name,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
-                fontSize: 11,
+                fontSize: 12,
               ),
             ),
           ),
           Icon(
             Icons.celebration_rounded,
             color: colors.tertiary,
-            size: 17,
+            size: 18,
           ),
         ],
       ),
@@ -909,9 +677,8 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle(
-            'Upcoming Holidays',
-          ),
+          _sectionTitle('Upcoming Holidays'),
+
           if (_controller.holidays.isEmpty)
             _emptyMessage('No upcoming holidays.')
           else
@@ -922,21 +689,21 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
   }
 
   // ============================================================
-  // EMPTY STATE
+  // EMPTY MESSAGE
   // ============================================================
 
   Widget _emptyMessage(String message) {
     final colors = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 16),
       child: Center(
         child: Text(
           message,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: colors.onSurfaceVariant,
-            fontSize: 11,
+            fontSize: 11.5,
           ),
         ),
       ),
@@ -944,7 +711,7 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
   }
 
   // ============================================================
-  // BOTTOM SECTIONS
+  // DASHBOARD SECTIONS
   // ============================================================
 
   Widget _buildSections() {
@@ -952,7 +719,8 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
       builder: (context, constraints) {
         final columns = constraints.maxWidth >= 850 ? 2 : 1;
 
-        const gap = 10.0;
+        const gap = 12.0;
+
         final itemWidth =
             (constraints.maxWidth - gap * (columns - 1)) / columns;
 
@@ -976,7 +744,7 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
   }
 
   // ============================================================
-  // ERROR
+  // ERROR MESSAGE
   // ============================================================
 
   Widget _buildError() {
@@ -988,19 +756,19 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(11),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: colors.errorContainer,
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
           Icon(
             Icons.info_outline_rounded,
             color: colors.onErrorContainer,
-            size: 19,
+            size: 20,
           ),
-          const SizedBox(width: 9),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               _controller.error!,
@@ -1011,9 +779,8 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
             ),
           ),
           TextButton(
-            onPressed: _controller.isLoading
-                ? null
-                : _controller.refresh,
+            onPressed:
+            _controller.isLoading ? null : _controller.refresh,
             child: const Text('Retry'),
           ),
         ],
@@ -1022,7 +789,7 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
   }
 
   // ============================================================
-  // BUILD
+  // MAIN BUILD
   // ============================================================
 
   @override
@@ -1044,14 +811,15 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
               onRefresh: _controller.refresh,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 children: [
                   _header(),
-                  const SizedBox(height: 17),
+
+                  const SizedBox(height: 18),
 
                   if (firstLoad)
                     const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 45),
+                      padding: EdgeInsets.symmetric(vertical: 50),
                       child: Center(
                         child: CircularProgressIndicator(),
                       ),
@@ -1060,16 +828,16 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
                     _buildError(),
 
                     if (_controller.error != null)
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
 
                     if (_isManagement) ...[
                       _buildEmployeeOverview(),
-                      const SizedBox(height: 17),
+                      const SizedBox(height: 18),
                     ],
 
                     if (_isRecruitmentUser) ...[
                       _buildRecruitmentReport(),
-                      const SizedBox(height: 17),
+                      const SizedBox(height: 18),
                     ],
 
                     _buildSections(),
@@ -1080,6 +848,290 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
           ),
         );
       },
+    );
+  }
+}
+
+// ============================================================================
+// RECRUITMENT REPORT SECTION
+// ============================================================================
+
+class _RecruitmentReportSection extends StatefulWidget {
+  const _RecruitmentReportSection({
+    required this.controller,
+    required this.widgetRef,
+  });
+
+  final DashboardController controller;
+  final _DashboardFeaturePageState widgetRef;
+
+  @override
+  State<_RecruitmentReportSection> createState() =>
+      _RecruitmentReportSectionState();
+}
+
+class _RecruitmentReportSectionState
+    extends State<_RecruitmentReportSection> {
+  bool _jobsExpanded = false;
+  bool _pipelineExpanded = false;
+
+  static const int _maxCollapsed = 3;
+
+  // ============================================================
+  // REUSABLE BREAKDOWN CARD
+  // ============================================================
+
+  Widget _buildBreakdown({
+    required String title,
+    required String subtitle,
+    required List<Map<String, Object>> items,
+    required int total,
+    required bool expanded,
+    required VoidCallback onToggle,
+  }) {
+    final hasMore = items.length > _maxCollapsed;
+
+    // Always show first three items.
+    // Show all items when expanded.
+    final visibleItems = expanded
+        ? items
+        : items.take(_maxCollapsed).toList();
+
+    return widget.widgetRef._surface(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Only show arrow when there are more than 3 items.
+              if (hasMore)
+                IconButton(
+                  onPressed: onToggle,
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  padding: EdgeInsets.zero,
+                  icon: Icon(
+                    expanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: 22,
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          ...visibleItems.map((item) {
+            return widget.widgetRef._jobStatusRow(
+              label: item['label'] as String,
+              value: item['value'] as int,
+              color: item['color'] as Color,
+              total: total,
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
+  @override
+  Widget build(BuildContext context) {
+    final openJobs = widget.controller.count('openJobs');
+    final pendingJobs = widget.controller.count('pendingJobs');
+    final closedJobs = widget.controller.count('closedJobs');
+    final jobsListed = widget.controller.count('jobsListed');
+
+    final applied = widget.controller.count('candidateApplied');
+    final screening = widget.controller.count('candidateScreening');
+    final interview = widget.controller.count('candidateInterview');
+    final offered = widget.controller.count('candidateOffered');
+    final hired = widget.controller.count('candidateHired');
+    final rejected = widget.controller.count('candidateRejected');
+
+    final cands = widget.controller.count('candidates');
+    final interviews = widget.controller.count('interviews');
+
+    final jobTotal = jobsListed > 0 ? jobsListed : 1;
+    final candTotal = cands > 0 ? cands : 1;
+
+    // ----------------------------------------------------------
+    // JOB OPENINGS
+    // ----------------------------------------------------------
+
+    final jobItems = <Map<String, Object>>[
+      {
+        'label': 'Open & Approved',
+        'value': openJobs,
+        'color': Colors.green,
+      },
+      {
+        'label': 'Pending Approval',
+        'value': pendingJobs,
+        'color': Colors.orange,
+      },
+      {
+        'label': 'Closed',
+        'value': closedJobs,
+        'color': Colors.red,
+      },
+    ];
+
+    // ----------------------------------------------------------
+    // CANDIDATE PIPELINE
+    // ----------------------------------------------------------
+
+    final pipelineItems = <Map<String, Object>>[
+      {
+        'label': 'Applied',
+        'value': applied,
+        'color': Colors.blue,
+      },
+      {
+        'label': 'Screening',
+        'value': screening,
+        'color': Colors.deepOrange,
+      },
+      {
+        'label': 'Interview',
+        'value': interview,
+        'color': Colors.purple,
+      },
+      {
+        'label': 'Offered',
+        'value': offered,
+        'color': Colors.amber.shade800,
+      },
+      {
+        'label': 'Hired',
+        'value': hired,
+        'color': Colors.teal,
+      },
+      {
+        'label': 'Rejected',
+        'value': rejected,
+        'color': Colors.red,
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        widget.widgetRef._sectionTitle(
+          'Recruitment Highlights',
+        ),
+
+        // ------------------------------------------------------
+        // HIGHLIGHT CARDS
+        // ------------------------------------------------------
+
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: widget.widgetRef._recruitmentHighlight(
+                title: 'Total Candidates',
+                subtitle: 'In pipeline',
+                value: cands,
+                icon: Icons.person_search_rounded,
+                color: Colors.indigo,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: widget.widgetRef._recruitmentHighlight(
+                title: 'Interviews',
+                subtitle: 'Scheduled',
+                value: interviews,
+                icon: Icons.event_available_rounded,
+                color: Colors.deepPurple,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: widget.widgetRef._recruitmentHighlight(
+                title: 'Hired',
+                subtitle: 'This month',
+                value: hired,
+                icon: Icons.verified_rounded,
+                color: Colors.teal,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 12),
+
+        // ------------------------------------------------------
+        // JOB OPENINGS + CANDIDATE PIPELINE
+        // ------------------------------------------------------
+
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _buildBreakdown(
+                title: 'Job Openings Breakdown',
+                subtitle: 'Total Jobs: $jobsListed',
+                items: jobItems,
+                total: jobTotal,
+                expanded: _jobsExpanded,
+                onToggle: () {
+                  setState(() {
+                    _jobsExpanded = !_jobsExpanded;
+                  });
+                },
+              ),
+            ),
+
+            const SizedBox(width: 10),
+
+            Expanded(
+              child: _buildBreakdown(
+                title: 'Candidate Pipeline',
+                subtitle: 'Total Candidates: $cands',
+                items: pipelineItems,
+                total: candTotal,
+                expanded: _pipelineExpanded,
+                onToggle: () {
+                  setState(() {
+                    _pipelineExpanded = !_pipelineExpanded;
+                  });
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

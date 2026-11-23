@@ -1,13 +1,14 @@
 import 'package:flutter/foundation.dart';
-import 'package:hrms/core/common.dart';
+import 'package:hrms/domain/entities/document_entity.dart';
+import 'package:hrms/domain/entities/employee_entity.dart';
 import '../data/documents_repository.dart';
 
 class DocumentsController extends ChangeNotifier {
   final DocumentsRepository _repository = DocumentsRepository();
 
   bool isLoading = false;
-  List<Rec> documents = [];
-  List<Rec> scopeEmployees = [];
+  List<DocumentEntity> documents = [];
+  List<EmployeeEntity> scopeEmployees = [];
 
   Future<void> loadDocuments() async {
     isLoading = true;
@@ -25,7 +26,7 @@ class DocumentsController extends ChangeNotifier {
     await loadDocuments();
   }
 
-  Future<void> deleteDocument(Rec doc) async {
+  Future<void> deleteDocument(DocumentEntity doc) async {
     await _repository.deleteDocument(doc);
     await loadDocuments();
   }

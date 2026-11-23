@@ -4,6 +4,7 @@ import 'package:hrms/comman_widget/customer_dropdown.dart';
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/session.dart';
 import 'package:hrms/core/ui.dart';
+import 'package:hrms/domain/entities/leave_entity.dart';
 
 import '../data/leave_repository.dart';
 import 'leave_controller.dart';
@@ -63,8 +64,10 @@ class _LeaveFeaturePageState extends State<LeaveFeaturePage> {
                 ];
 
                 if (tabs.isEmpty) {
-                  return const Center(
-                    child: Text('You do not have access to this section.'),
+                  return const _EmptyState(
+                    icon: Icons.lock_outline,
+                    title: 'Access unavailable',
+                    subtitle: 'You do not have access to this section.',
                   );
                 }
 
@@ -96,6 +99,8 @@ class _MyLeaveTab extends StatelessWidget {
         controller.leaves.where((e) => e.s('status') == 'Pending').length;
     final approved =
         controller.leaves.where((e) => e.s('status') == 'Approved').length;
+    final rejected =
+        controller.leaves.where((e) => e.s('status') == 'Rejected').length;
 
     return RefreshIndicator(
       onRefresh: () => controller.loadLeaveData(
@@ -104,75 +109,93 @@ class _MyLeaveTab extends StatelessWidget {
       ),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'My Leave',
-                      style: theme.textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Manage your leave and balances',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
+          _WelcomeCard(
+            title: 'My Leave',
+            subtitle: 'Manage your time off and leave requests',
+            icon: Icons.event_available_rounded,
+            trailing: FilledButton.icon(
+              onPressed: controller.isSubmitting
+                  ? null
+                  : () => _apply(context),
+              icon: const Icon(Icons.add_rounded, size: 17),
+              label: Text(
+                controller.isSubmitting ? 'Please wait' : 'Apply Leave',
               ),
-              const SizedBox(width: 8),
-              FilledButton.tonalIcon(
-                onPressed: controller.isSubmitting ? null : () => _apply(context),
-                icon: const Icon(Icons.add, size: 17),
-                label: Text(
-                  controller.isSubmitting ? 'Wait...' : 'Apply Leave',
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 10),
-
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _SummaryCard(
-                title: 'Requests',
-                value: '${controller.leaves.length}',
-                icon: Icons.event_note_outlined,
-                color: cs.primary,
-              ),
-              _SummaryCard(
-                title: 'Pending',
-                value: '$pending',
-                icon: Icons.hourglass_top_outlined,
-                color: Colors.orange,
-              ),
-              _SummaryCard(
-                title: 'Approved',
-                value: '$approved',
-                icon: Icons.check_circle_outline,
-                color: Colors.green,
-              ),
-            ],
+            ),
           ),
 
           const SizedBox(height: 16),
 
           const _SectionHeader(
-            title: 'Leave Balance',
-            subtitle: 'Available leave days',
+            title: 'Leave Overview',
+            subtitle: 'Your leave request summary',
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
+
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final itemWidth = width < 420
+                  ? (width - 10) / 2
+                  : (width - 20) / 3;
+
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  SizedBox(
+                    width: itemWidth,
+                    child: _SummaryCard(
+                      title: 'Total Requests',
+                      value: '${controller.leaves.length}',
+                      icon: Icons.calendar_month_rounded,
+                      color: cs.primary,
+                    ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _SummaryCard(
+                      title: 'Pending',
+                      value: '$pending',
+                      icon: Icons.hourglass_top_rounded,
+                      color: Colors.orange,
+                    ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _SummaryCard(
+                      title: 'Approved',
+                      value: '$approved',
+                      icon: Icons.check_circle_outline_rounded,
+                      color: Colors.green,
+                    ),
+                  ),
+                  if (rejected > 0)
+                    SizedBox(
+                      width: itemWidth,
+                      child: _SummaryCard(
+                        title: 'Rejected',
+                        value: '$rejected',
+                        icon: Icons.cancel_outlined,
+                        color: Colors.red,
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+
+          const SizedBox(height: 22),
+
+          const _SectionHeader(
+            title: 'Leave Balance',
+            subtitle: 'Check your available leave days',
+          ),
+
+          const SizedBox(height: 10),
 
           if (controller.balances.isEmpty)
             const _EmptyState(
@@ -182,11 +205,11 @@ class _MyLeaveTab extends StatelessWidget {
             )
           else
             SizedBox(
-              height: 108,
+              height: 145,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: controller.balances.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
                 itemBuilder: (context, index) {
                   return _BalanceCard(
                     balance: controller.balances[index],
@@ -195,31 +218,32 @@ class _MyLeaveTab extends StatelessWidget {
               ),
             ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 22),
 
           _SectionHeader(
             title: 'My Requests',
-            subtitle: 'Your leave applications',
+            subtitle: 'Track your leave applications',
             trailing: Text(
               '${controller.leaves.length} total',
-              style: theme.textTheme.labelSmall?.copyWith(
+              style: theme.textTheme.labelMedium?.copyWith(
                 color: cs.primary,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
 
           if (controller.leaves.isEmpty)
             const _EmptyState(
-              icon: Icons.calendar_month_outlined,
-              title: 'No leave requests',
-              subtitle: 'Tap Apply Leave to submit a request.',
+              icon: Icons.event_note_outlined,
+              title: 'No leave requests yet',
+              subtitle: 'Your leave applications will appear here.',
             )
           else
             ...controller.leaves.map(
                   (leave) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: 10),
                 child: _LeaveRequestCard(
                   leave: leave,
                   showEmployee: false,
@@ -293,54 +317,35 @@ class _MyLeaveTab extends StatelessWidget {
                 });
               }
 
-              Widget dateButton(
-                  String label,
-                  DateTime? date,
-                  IconData icon,
-                  VoidCallback onTap,
-                  ) {
-                return Expanded(
-                  child: InkWell(
-                    onTap: onTap,
-                    borderRadius: BorderRadius.circular(9),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
+              return AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                title: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(9),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.grey.shade300),
+                        color: cs.primaryContainer,
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(icon, size: 14, color: cs.primary),
-                              const SizedBox(width: 5),
-                              Text(
-                                label,
-                                style: Theme.of(context).textTheme.labelSmall,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            date == null
-                                ? 'Select date'
-                                : fmtDate(ymd(date)),
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
+                      child: Icon(
+                        Icons.beach_access_rounded,
+                        color: cs.primary,
+                        size: 20,
                       ),
                     ),
-                  ),
-                );
-              }
-
-              return AlertDialog(
-                title: const Text(
-                  'Apply for Leave',
-                  style: TextStyle(fontSize: 17),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Apply for Leave',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 content: SizedBox(
                   width: 420,
@@ -349,10 +354,12 @@ class _MyLeaveTab extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const _FieldLabel('Leave Type'),
+                        const SizedBox(height: 7),
                         CustomDropdown<String>(
                           label: 'Leave Type',
                           value: selectedType,
-                          icon: Icons.beach_access_outlined,
+                          icon: Icons.category_outlined,
                           hint: 'Select leave type',
                           searchText: (id) {
                             final index = types.indexWhere(
@@ -378,39 +385,67 @@ class _MyLeaveTab extends StatelessWidget {
                           },
                         ),
 
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 18),
 
-                        const Text(
-                          'Leave Duration',
-                          style: TextStyle(fontSize: 13),
-                        ),
+                        const _FieldLabel('Leave Duration'),
                         const SizedBox(height: 7),
 
                         Row(
                           children: [
-                            dateButton(
-                              'From',
-                              fromDate,
-                              Icons.calendar_today_outlined,
-                                  () => pickDate(true),
+                            Expanded(
+                              child: _DateSelector(
+                                label: 'From Date',
+                                date: fromDate,
+                                icon: Icons.calendar_today_rounded,
+                                onTap: () => pickDate(true),
+                              ),
                             ),
-                            const SizedBox(width: 8),
-                            dateButton(
-                              'To',
-                              toDate,
-                              Icons.event_outlined,
-                                  () => pickDate(false),
+                            const SizedBox(width: 9),
+                            Expanded(
+                              child: _DateSelector(
+                                label: 'To Date',
+                                date: toDate,
+                                icon: Icons.event_rounded,
+                                onTap: () => pickDate(false),
+                              ),
                             ),
                           ],
                         ),
 
-                        const SizedBox(height: 14),
+                        if (fromDate != null && toDate != null) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: cs.primaryContainer.withValues(alpha: 0.35),
+                              borderRadius: BorderRadius.circular(9),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline_rounded,
+                                  color: cs.primary,
+                                  size: 17,
+                                ),
+                                const SizedBox(width: 7),
+                                Text(
+                                  '${toDate!.difference(fromDate!).inDays + 1} calendar days selected',
+                                  style: TextStyle(
+                                    color: cs.primary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
 
-                        const Text(
-                          'Reason',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 18),
+
+                        const _FieldLabel('Reason for Leave'),
+                        const SizedBox(height: 7),
 
                         TextField(
                           controller: reasonController,
@@ -419,30 +454,38 @@ class _MyLeaveTab extends StatelessWidget {
                           textCapitalization: TextCapitalization.sentences,
                           style: const TextStyle(fontSize: 13),
                           decoration: InputDecoration(
-                            hintText: 'Enter reason for leave',
-                            hintStyle: const TextStyle(fontSize: 12),
-                            prefixIcon: const Icon(Icons.notes_outlined, size: 18),
+                            hintText: 'Enter reason for leave...',
+                            prefixIcon: const Padding(
+                              padding: EdgeInsets.only(bottom: 45),
+                              child: Icon(Icons.notes_rounded, size: 18),
+                            ),
                             filled: true,
-                            fillColor: Colors.white,
+                            fillColor: cs.surfaceContainerHighest.withValues(
+                              alpha: 0.3,
+                            ),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(6),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: cs.outlineVariant),
                             ),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(6),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: cs.outlineVariant),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(6),
-                              borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.2),
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: cs.primary,
+                                width: 1.4,
+                              ),
                             ),
-                            contentPadding: const EdgeInsets.all(10),
+                            contentPadding: const EdgeInsets.all(12),
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
+                actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(dialogContext),
@@ -470,8 +513,8 @@ class _MyLeaveTab extends StatelessWidget {
                         'reason': reasonController.text.trim(),
                       });
                     },
-                    icon: const Icon(Icons.send_outlined, size: 16),
-                    label: const Text('Submit'),
+                    icon: const Icon(Icons.send_rounded, size: 16),
+                    label: const Text('Submit Request'),
                   ),
                 ],
               );
@@ -502,7 +545,7 @@ class _MyLeaveTab extends StatelessWidget {
     }
   }
 
-  Future<void> _cancel(BuildContext context, Rec leave) async {
+  Future<void> _cancel(BuildContext context, LeaveEntity leave) async {
     final confirmed = await _confirm(
       context,
       'Cancel Leave',
@@ -554,44 +597,61 @@ class _ApprovalsTab extends StatelessWidget {
       ),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Leave Approvals',
-                      style: theme.textTheme.titleMedium,
-                    ),
-                    Text(
-                      'Review employee leave requests',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
+          _WelcomeCard(
+            title: 'Leave Approvals',
+            subtitle: 'Review and manage employee leave requests',
+            icon: Icons.fact_check_outlined,
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 13,
+                vertical: 10,
               ),
-              _SummaryCard(
-                title: 'Pending',
-                value: '$pending',
-                icon: Icons.hourglass_top_outlined,
-                color: Colors.orange,
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
               ),
-            ],
+              child: Column(
+                children: [
+                  Text(
+                    '$pending',
+                    style: const TextStyle(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 20,
+                    ),
+                  ),
+                  const Text(
+                    'Pending',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 18),
+
+          const _SectionHeader(
+            title: 'Requests',
+            subtitle: 'Filter employee applications',
           ),
 
           const SizedBox(height: 10),
 
           Wrap(
-            spacing: 7,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               ChoiceChip(
+                avatar: const Icon(Icons.hourglass_top_rounded, size: 15),
                 label: const Text('Pending'),
                 selected: controller.pendingOnlyApprovals,
+                selectedColor: cs.primaryContainer,
                 onSelected: (value) {
                   if (value) {
                     controller.setPendingOnlyApprovals(true, Session.empId);
@@ -599,8 +659,10 @@ class _ApprovalsTab extends StatelessWidget {
                 },
               ),
               ChoiceChip(
+                avatar: const Icon(Icons.list_alt_rounded, size: 15),
                 label: const Text('All Requests'),
                 selected: !controller.pendingOnlyApprovals,
+                selectedColor: cs.primaryContainer,
                 onSelected: (value) {
                   if (value) {
                     controller.setPendingOnlyApprovals(false, Session.empId);
@@ -610,18 +672,18 @@ class _ApprovalsTab extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
 
           if (controller.approvalLeaves.isEmpty)
             const _EmptyState(
-              icon: Icons.task_alt_outlined,
+              icon: Icons.task_alt_rounded,
               title: 'No approval requests',
               subtitle: 'There are no requests to display.',
             )
           else
             ...controller.approvalLeaves.map(
                   (leave) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: 10),
                 child: _LeaveRequestCard(
                   leave: leave,
                   showEmployee: true,
@@ -641,7 +703,7 @@ class _ApprovalsTab extends StatelessWidget {
 
   Future<void> _decide(
       BuildContext context,
-      Rec leave,
+      LeaveEntity leave,
       bool approve,
       ) async {
     final action = approve ? 'Approve' : 'Reject';
@@ -688,22 +750,22 @@ class _SetupTab extends StatelessWidget {
 
         if (!wide) {
           return ListView(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             children: [
               _leaveTypesPanel(context),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               _holidaysPanel(context),
             ],
           );
         }
 
         return Padding(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: _leaveTypesPanel(context)),
-              const SizedBox(width: 10),
+              const SizedBox(width: 14),
               Expanded(child: _holidaysPanel(context)),
             ],
           ),
@@ -713,20 +775,22 @@ class _SetupTab extends StatelessWidget {
   }
 
   Widget _leaveTypesPanel(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Panel(
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(14),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _panelHeader(
-              context,
-              'Leave Types',
-              'Employee leave categories',
-              Icons.beach_access_outlined,
+            _PanelHeader(
+              title: 'Leave Types',
+              subtitle: 'Employee leave categories',
+              icon: Icons.beach_access_rounded,
               onAdd: () => _editType(context),
             ),
-            const Divider(height: 14),
+
+            const Divider(height: 22),
 
             if (controller.leaveTypes.isEmpty)
               const _EmptyState(
@@ -736,47 +800,79 @@ class _SetupTab extends StatelessWidget {
               )
             else
               ...controller.leaveTypes.map(
-                    (type) => ListTile(
-                  dense: true,
-                  visualDensity: VisualDensity.compact,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 3),
-                  leading: CircleAvatar(
-                    radius: 15,
-                    child: Icon(
-                      type.i('paid') == 1
-                          ? Icons.account_balance_wallet_outlined
-                          : Icons.money_off_outlined,
-                      size: 15,
+                    (type) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 3,
                     ),
-                  ),
-                  title: Text(
-                    type.s('name'),
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  subtitle: Text(
-                    '${nf(type.d('days_per_year'))} days/year · '
-                        '${type.i('paid') == 1 ? 'Paid' : 'Unpaid'}',
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                  trailing: PopupMenuButton<String>(
-                    padding: EdgeInsets.zero,
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        _editType(context, type);
-                      } else if (value == 'delete') {
-                        _deleteType(context, type);
-                      }
-                    },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
-                        value: 'edit',
-                        child: Text('Edit'),
+                    leading: CircleAvatar(
+                      radius: 18,
+                      backgroundColor: cs.primaryContainer,
+                      child: Icon(
+                        type.i('paid') == 1
+                            ? Icons.account_balance_wallet_outlined
+                            : Icons.money_off_rounded,
+                        color: cs.primary,
+                        size: 17,
                       ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Delete'),
+                    ),
+                    title: Text(
+                      type.s('name'),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
                       ),
-                    ],
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Text(
+                        '${nf(type.d('days_per_year'))} days/year · '
+                            '${type.i('paid') == 1 ? 'Paid' : 'Unpaid'}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                      trailing: PopupMenuButton<String>(
+                      tooltip: 'Options',
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _editType(context, type);
+                        } else if (value == 'delete') {
+                          _deleteType(context, type);
+                        }
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: ListTile(
+                            dense: true,
+                            leading: Icon(Icons.edit_outlined, size: 18),
+                            title: Text('Edit'),
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: ListTile(
+                            dense: true,
+                            leading: Icon(
+                              Icons.delete_outline,
+                              size: 18,
+                              color: Colors.red,
+                            ),
+                            title: Text('Delete'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -787,60 +883,64 @@ class _SetupTab extends StatelessWidget {
   }
 
   Widget _holidaysPanel(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Panel(
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(14),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
                 Expanded(
-                  child: _panelHeader(
-                    context,
-                    'Holidays',
-                    'Company holidays',
-                    Icons.calendar_month_outlined,
-                    onAdd: () => _addHoliday(context),
+                  child: _PanelHeader(
+                    title: 'Holidays',
+                    subtitle: 'Company holidays',
+                    icon: Icons.calendar_month_rounded,
                     showAdd: false,
+                    onAdd: () {},
                   ),
                 ),
                 IconButton(
-                  visualDensity: VisualDensity.compact,
                   tooltip: 'Previous year',
+                  visualDensity: VisualDensity.compact,
                   onPressed: () {
                     controller.setHolidayYear(
                       controller.holidayYear - 1,
                       Session.empId,
                     );
                   },
-                  icon: const Icon(Icons.chevron_left, size: 19),
+                  icon: const Icon(Icons.chevron_left_rounded),
                 ),
                 Text(
                   '${controller.holidayYear}',
-                  style: const TextStyle(fontSize: 12),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 IconButton(
-                  visualDensity: VisualDensity.compact,
                   tooltip: 'Next year',
+                  visualDensity: VisualDensity.compact,
                   onPressed: () {
                     controller.setHolidayYear(
                       controller.holidayYear + 1,
                       Session.empId,
                     );
                   },
-                  icon: const Icon(Icons.chevron_right, size: 19),
+                  icon: const Icon(Icons.chevron_right_rounded),
                 ),
                 IconButton.filledTonal(
-                  visualDensity: VisualDensity.compact,
                   tooltip: 'Add holiday',
+                  visualDensity: VisualDensity.compact,
                   onPressed: () => _addHoliday(context),
-                  icon: const Icon(Icons.add, size: 17),
+                  icon: const Icon(Icons.add_rounded, size: 18),
                 ),
               ],
             ),
 
-            const Divider(height: 14),
+            const Divider(height: 22),
 
             if (controller.holidays.isEmpty)
               const _EmptyState(
@@ -850,31 +950,47 @@ class _SetupTab extends StatelessWidget {
               )
             else
               ...controller.holidays.map(
-                    (holiday) => ListTile(
-                  dense: true,
-                  visualDensity: VisualDensity.compact,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 3),
-                  leading: const CircleAvatar(
-                    radius: 15,
-                    child: Icon(Icons.event_available_outlined, size: 15),
+                    (holiday) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  title: Text(
-                    holiday.s('name'),
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  subtitle: Text(
-                    fmtDate(holiday['date']),
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                  trailing: IconButton(
-                    visualDensity: VisualDensity.compact,
-                    tooltip: 'Delete holiday',
-                    icon: const Icon(
-                      Icons.delete_outline,
-                      color: Colors.red,
-                      size: 18,
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 2,
                     ),
-                    onPressed: () => _deleteHoliday(context, holiday),
+                    leading: CircleAvatar(
+                      radius: 17,
+                      backgroundColor: Colors.green.withValues(alpha: 0.12),
+                      child: const Icon(
+                        Icons.event_available_rounded,
+                        color: Colors.green,
+                        size: 17,
+                      ),
+                    ),
+                    title: Text(
+                      holiday.s('name'),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    subtitle: Text(
+                      fmtDate(holiday['date']),
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    trailing: IconButton(
+                      tooltip: 'Delete holiday',
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: Colors.red,
+                        size: 19,
+                      ),
+                      onPressed: () => _deleteHoliday(context, holiday),
+                    ),
                   ),
                 ),
               ),
@@ -884,55 +1000,9 @@ class _SetupTab extends StatelessWidget {
     );
   }
 
-  Widget _panelHeader(
-      BuildContext context,
-      String title,
-      String subtitle,
-      IconData icon, {
-        required VoidCallback onAdd,
-        bool showAdd = true,
-      }) {
-    final theme = Theme.of(context);
-
-    return Row(
-      children: [
-        Icon(icon, size: 19, color: theme.colorScheme.primary),
-        const SizedBox(width: 7),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: theme.textTheme.titleSmall,
-              ),
-              Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (showAdd)
-          FilledButton.tonalIcon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add, size: 15),
-            label: const Text(
-              'Add',
-              style: TextStyle(fontSize: 12),
-            ),
-          ),
-      ],
-    );
-  }
-
   Future<void> _editType(
       BuildContext context, [
-        Rec? type,
+        LeaveTypeEntity? type,
       ]) async {
     final result = await formDialog(
       context,
@@ -992,7 +1062,10 @@ class _SetupTab extends StatelessWidget {
     }
   }
 
-  Future<void> _deleteType(BuildContext context, Rec type) async {
+  Future<void> _deleteType(
+      BuildContext context,
+      LeaveTypeEntity type,
+      ) async {
     final confirmed = await _confirm(
       context,
       'Delete Leave Type',
@@ -1071,6 +1144,7 @@ class _SetupTab extends StatelessWidget {
 // LEAVE REQUEST CARD
 // ============================================================================
 
+
 class _LeaveRequestCard extends StatelessWidget {
   const _LeaveRequestCard({
     required this.leave,
@@ -1080,7 +1154,7 @@ class _LeaveRequestCard extends StatelessWidget {
     this.onReject,
   });
 
-  final Rec leave;
+  final LeaveEntity leave;
   final bool showEmployee;
   final VoidCallback? onCancel;
   final VoidCallback? onApprove;
@@ -1088,8 +1162,27 @@ class _LeaveRequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final cs = Theme.of(context).colorScheme;
+    final status = leave.s('status');
+
+    final employeeName = (leave.empName ?? '').trim();
+    final employeeCode = (leave.empCode ?? '').trim();
+    final department = (leave.department ?? '').trim();
+    final leaveType = (leave.typeName ?? '').trim();
+
+    final employeeTitle = [
+      if (employeeName.isNotEmpty) employeeName,
+      if (employeeCode.isNotEmpty) employeeCode,
+      if (department.isNotEmpty) department,
+      if (leaveType.isNotEmpty) leaveType,
+    ].join(' · ');
+
+    final color = switch (status.toLowerCase()) {
+      'approved' => Colors.green,
+      'rejected' => Colors.red,
+      'pending' => Colors.orange,
+      _ => cs.primary,
+    };
 
     return Card(
       elevation: 0,
@@ -1101,132 +1194,148 @@ class _LeaveRequestCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Employee / Leave header
             Row(
               children: [
                 CircleAvatar(
-                  radius: 16,
+                  radius: 17,
                   backgroundColor: cs.primaryContainer,
                   child: Icon(
                     showEmployee
                         ? Icons.person_outline
                         : Icons.beach_access_outlined,
-                    color: cs.onPrimaryContainer,
-                    size: 16,
+                    color: cs.primary,
+                    size: 17,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 9),
+
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        showEmployee
-                            ? leave.s('emp_name')
-                            : leave.s('type_name'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleSmall,
-                      ),
-                      if (showEmployee)
-                        Text(
-                          leave.s('type_name'),
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: cs.onSurfaceVariant,
-                          ),
-                        ),
-                    ],
+                  child: Text(
+                    showEmployee
+                        ? (employeeTitle.isEmpty
+                        ? 'Employee details unavailable'
+                        : employeeTitle)
+                        : (leaveType.isEmpty ? 'Leave' : leaveType),
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
+
                 const SizedBox(width: 5),
-                StatusChip(leave.s('status')),
+
+                _StatusBadge(
+                  status: status,
+                  color: color,
+                ),
               ],
             ),
 
-            const SizedBox(height: 9),
+            const SizedBox(height: 10),
 
-            Wrap(
-              spacing: 12,
-              runSpacing: 6,
+            // Dates, days and action buttons
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _InfoItem(
-                  icon: Icons.calendar_today_outlined,
-                  label: 'From',
-                  value: fmtDate(leave['start_date']),
+                Expanded(
+                  child: _CompactInfo(
+                    label: 'From',
+                    value: fmtDate(leave['start_date']),
+                  ),
                 ),
-                _InfoItem(
-                  icon: Icons.event_outlined,
-                  label: 'To',
-                  value: fmtDate(leave['end_date']),
+                Expanded(
+                  child: _CompactInfo(
+                    label: 'To',
+                    value: fmtDate(leave['end_date']),
+                  ),
                 ),
-                _InfoItem(
-                  icon: Icons.timelapse_outlined,
-                  label: 'Duration',
-                  value: '${nf(leave.d('days'))} days',
+                Expanded(
+                  child: _CompactInfo(
+                    label: 'Days',
+                    value: nf(leave.d('days')),
+                  ),
                 ),
+
+                if (onReject != null || onApprove != null || onCancel != null)
+                  const SizedBox(width: 6),
+
+                if (onReject != null)
+                  _SmallActionButton(
+                    label: 'Reject',
+                    icon: Icons.close,
+                    color: Colors.red,
+                    onPressed: onReject!,
+                  ),
+
+                if (onApprove != null) ...[
+                  const SizedBox(width: 5),
+                  _SmallActionButton(
+                    label: 'Approve',
+                    icon: Icons.check,
+                    color: Colors.green,
+                    onPressed: onApprove!,
+                  ),
+                ],
+
+                if (onCancel != null)
+                  _SmallActionButton(
+                    label: 'Cancel',
+                    icon: Icons.close,
+                    color: Colors.red,
+                    onPressed: onCancel!,
+                  ),
               ],
             ),
 
-            if (leave.s('reason').isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerHighest.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(7),
-                ),
-                child: Text(
-                  leave.s('reason'),
-                  style: theme.textTheme.bodySmall,
-                ),
-              ),
-            ],
-
-            if (onCancel != null ||
-                onApprove != null ||
-                onReject != null) ...[
-              const SizedBox(height: 7),
-              const Divider(height: 1),
-              const SizedBox(height: 4),
-              Wrap(
-                alignment: WrapAlignment.end,
-                spacing: 5,
-                runSpacing: 3,
-                children: [
-                  if (onCancel != null)
-                    TextButton.icon(
-                      onPressed: onCancel,
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      icon: const Icon(Icons.close, size: 15),
-                      label: const Text('Cancel'),
-                    ),
-                  if (onReject != null)
-                    TextButton.icon(
-                      onPressed: onReject,
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      icon: const Icon(Icons.close, size: 15),
-                      label: const Text('Reject'),
-                    ),
-                  if (onApprove != null)
-                    FilledButton.tonalIcon(
-                      onPressed: onApprove,
-                      style: FilledButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      icon: const Icon(Icons.check, size: 15),
-                      label: const Text('Approve'),
-                    ),
-                ],
-              ),
-            ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+class _SmallActionButton extends StatelessWidget {
+  const _SmallActionButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 14),
+      label: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: color.withValues(alpha: 0.4)),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 6,
+        ),
+        minimumSize: const Size(0, 32),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
       ),
     );
   }
@@ -1236,67 +1345,82 @@ class _LeaveRequestCard extends StatelessWidget {
 // BALANCE CARD
 // ============================================================================
 
+
+
 class _BalanceCard extends StatelessWidget {
   const _BalanceCard({required this.balance});
 
-  final Rec balance;
+  final LeaveBalanceEntity balance;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final cs = Theme.of(context).colorScheme;
 
     final paid = balance.i('paid') == 1;
     final total = balance.d('days_per_year');
     final used = balance.d('used');
     final pending = balance.d('pending');
+    final remaining =
+    (total - used - pending).clamp(0.0, double.infinity);
 
-    final remaining = (total - used - pending)
-        .clamp(0.0, double.infinity)
-        .toDouble();
-
-    final progress = total > 0
-        ? (remaining / total).clamp(0.0, 1.0).toDouble()
-        : 0.0;
+    final progress =
+    total > 0 ? (remaining / total).clamp(0.0, 1.0) : 0.0;
 
     return SizedBox(
-      width: 195,
+      width: 175,
       child: Card(
-        elevation: 0,
         margin: EdgeInsets.zero,
+        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(9),
           side: BorderSide(color: cs.outlineVariant),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(9),
+          padding: const EdgeInsets.all(8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                balance.s('name'),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall,
+              Row(
+                children: [
+                  Icon(
+                    paid ? Icons.wallet_outlined : Icons.money_off,
+                    size: 15,
+                    color: cs.primary,
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      balance.s('name'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const Spacer(),
+              const SizedBox(height: 5),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
                     paid ? nf(remaining) : '—',
-                    style: theme.textTheme.titleLarge?.copyWith(
+                    style: TextStyle(
+                      fontSize: 19,
+                      height: 1,
+                      fontWeight: FontWeight.bold,
                       color: cs.primary,
                     ),
                   ),
-                  const SizedBox(width: 5),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 3),
-                    child: Text(
-                      paid ? 'days left' : 'unpaid',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
+                  const SizedBox(width: 4),
+                  Text(
+                    paid ? 'days left' : 'unpaid',
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: cs.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -1304,31 +1428,45 @@ class _BalanceCard extends StatelessWidget {
               const SizedBox(height: 6),
               if (paid)
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(5),
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 4,
                     backgroundColor: cs.surfaceContainerHighest,
                   ),
                 ),
-              const SizedBox(height: 5),
-              Text(
-                paid
-                    ? 'Used ${nf(used)} · Pending ${nf(pending)} · Total ${nf(total)}'
-                    : 'Used ${nf(used)} · Pending ${nf(pending)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
+              const SizedBox(height: 6),
+              _balanceRow('Used', used),
+              _balanceRow('Pending', pending),
+              if (paid) _balanceRow('Total', total),
+              if (paid) _balanceRow('Remaining', remaining),
             ],
           ),
         ),
       ),
     );
   }
+
+  Widget _balanceRow(String label, double value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 9)),
+          Text(
+            nf(value),
+            style: const TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
 
 // ============================================================================
 // SUMMARY CARD
@@ -1352,52 +1490,50 @@ class _SummaryCard extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return SizedBox(
-      width: 145,
-      height: 62,
-      child: Card(
-        elevation: 0,
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(9),
-          side: BorderSide(color: cs.outlineVariant),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Row(
-            children: [
-              Container(
-                width: 29,
-                height: 29,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: color, size: 16),
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: cs.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          children: [
+            Container(
+              width: 37,
+              height: 37,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
               ),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      value,
-                      style: theme.textTheme.titleMedium,
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    value,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
+                  ),
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: cs.onSurfaceVariant,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1407,6 +1543,74 @@ class _SummaryCard extends StatelessWidget {
 // ============================================================================
 // COMMON WIDGETS
 // ============================================================================
+
+class _WelcomeCard extends StatelessWidget {
+  const _WelcomeCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    this.trailing,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: cs.primaryContainer.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: cs.primary.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 43,
+            height: 43,
+            decoration: BoxDecoration(
+              color: cs.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: cs.primary, size: 23),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (trailing != null) ...[
+            const SizedBox(width: 8),
+            trailing!,
+          ],
+        ],
+      ),
+    );
+  }
+}
 
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({
@@ -1431,8 +1635,11 @@ class _SectionHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: theme.textTheme.titleSmall,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
+              const SizedBox(height: 2),
               Text(
                 subtitle,
                 style: theme.textTheme.labelSmall?.copyWith(
@@ -1467,15 +1674,15 @@ class _InfoItem extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 13, color: cs.primary),
-        const SizedBox(width: 4),
+        Icon(icon, size: 14, color: cs.primary),
+        const SizedBox(width: 5),
         Text(
           '$label: ',
           style: style?.copyWith(color: cs.onSurfaceVariant),
         ),
         Text(
           value,
-          style: style,
+          style: style?.copyWith(fontWeight: FontWeight.w600),
         ),
       ],
     );
@@ -1499,21 +1706,37 @@ class _EmptyState extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 17),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 25,
+      ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withValues(alpha: 0.25),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(13),
         border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         children: [
-          Icon(icon, size: 25, color: cs.onSurfaceVariant),
-          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: cs.primaryContainer.withValues(alpha: 0.55),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              size: 25,
+              color: cs.primary,
+            ),
+          ),
+          const SizedBox(height: 10),
           Text(
             title,
-            style: Theme.of(context).textTheme.titleSmall,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Text(
             subtitle,
             textAlign: TextAlign.center,
@@ -1523,6 +1746,176 @@ class _EmptyState extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({
+    required this.status,
+    required this.color,
+  });
+
+  final String status;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        status.isEmpty ? 'Unknown' : status,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+}
+
+class _DateSelector extends StatelessWidget {
+  const _DateSelector({
+    required this.label,
+    required this.date,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final DateTime? date;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(11),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: cs.outlineVariant),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 15, color: cs.primary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 9),
+            Text(
+              date == null ? 'Select date' : fmtDate(ymd(date!)),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PanelHeader extends StatelessWidget {
+  const _PanelHeader({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onAdd,
+    this.showAdd = true,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final VoidCallback onAdd;
+  final bool showAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Icon(
+            icon,
+            size: 18,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (showAdd)
+          FilledButton.tonalIcon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text('Add'),
+          ),
+      ],
     );
   }
 }
@@ -1541,11 +1934,14 @@ Future<bool?> _confirm(
     builder: (dialogContext) {
       return AlertDialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(13),
+          borderRadius: BorderRadius.circular(16),
         ),
         title: Text(
           title,
-          style: const TextStyle(fontSize: 16),
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         content: Text(
           message,
@@ -1564,4 +1960,63 @@ Future<bool?> _confirm(
       );
     },
   );
+}
+
+class _CompactInfo extends StatelessWidget {
+  const _CompactInfo({
+    required this.label,
+    required this.value,
+    this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (icon != null) ...[
+          Icon(
+            icon,
+            size: 14,
+            color: colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 4),
+        ],
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value.isEmpty ? '-' : value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }

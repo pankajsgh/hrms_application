@@ -2,14 +2,19 @@ import 'package:hrms/core/common.dart';
 import 'package:hrms/core/db.dart';
 import 'package:hrms/data/datasources/local_datasource.dart';
 import 'package:hrms/data/repositories/repository_impl.dart';
+import 'package:hrms/domain/entities/employee_entity.dart';
+import 'package:hrms/domain/entities/user_entity.dart';
 import '../../employees/data/employees_repository.dart';
 
 class UsersRepository {
-  Future<List<Rec>> users() => Repo.queryOrLocal('users', {}, () => Db.db.rawQuery(
-      'SELECT u.*, e.name AS emp_name FROM users u '
-      'LEFT JOIN employees e ON e.id = u.employee_id ORDER BY u.username'));
+  Future<List<UserEntity>> users() async {
+    final raw = await Repo.queryOrLocal('users', {}, () => Db.db.rawQuery(
+        'SELECT u.*, e.name AS emp_name FROM users u '
+        'LEFT JOIN employees e ON e.id = u.employee_id ORDER BY u.username'));
+    return raw.map((r) => UserEntity.fromMap(r)).toList();
+  }
 
-  Future<List<Rec>> fetchUsers() => users();
+  Future<List<UserEntity>> fetchUsers() => users();
 
   Future<String?> createUser(
       String username, String password, String role, int? empId) async {
@@ -30,8 +35,10 @@ class UsersRepository {
     return null;
   }
 
-  Future<void> updateUser(int id, Rec values) =>
-      Repo.saveData('users', {'id': '$id'}, values);
+  Future<void> updateUser(int id, Object values) async {
+    final map = values is UserEntity ? values.toMap() : (values as Map<String, Object?>);
+    await Repo.saveData('users', {'id': '$id'}, map);
+  }
 
   Future<void> setPassword(int userId, String pw,
       {bool mustChange = false}) async {
@@ -40,7 +47,7 @@ class UsersRepository {
         where: 'id = ?', whereArgs: [userId]);
   }
 
-  Future<List<Rec>> activeEmployees() => EmployeesRepository().employees(activeOnly: true);
+  Future<List<EmployeeEntity>> activeEmployees() => EmployeesRepository().employees(activeOnly: true);
 
-  Future<List<Rec>> fetchActiveEmployees() => activeEmployees();
+  Future<List<EmployeeEntity>> fetchActiveEmployees() => activeEmployees();
 }

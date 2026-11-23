@@ -14,8 +14,8 @@ Future<bool> showSpecialDayForm(BuildContext context,
     F('emp', 'Employee',
         type: 'dropdown',
         required: true,
-        options: {for (final e in emps) '${e['id']}': e.s('name')},
-        initial: existing?['employee_id'] ?? empId),
+        options: {for (final e in emps) '${e.id}': e.name},
+        initial: existing?['employee_id']?.toString() ?? (empId != null ? '$empId' : null)),
     F('kind', 'Type',
         type: 'dropdown',
         required: true,
@@ -77,7 +77,7 @@ class SpecialDaysFeaturePageState extends State<SpecialDaysFeaturePage> {
     super.dispose();
   }
 
-  Future<void> _edit([Rec? s]) async {
+  Future<void> _edit([dynamic s]) async {
     if (await showSpecialDayForm(context, existing: s)) {
       _controller.loadSpecialDays();
     }

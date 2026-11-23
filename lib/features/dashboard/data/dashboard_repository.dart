@@ -1,7 +1,8 @@
-
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/session.dart';
 import 'package:hrms/data/datasources/local_datasource.dart';
+import 'package:hrms/domain/entities/leave_entity.dart';
+import 'package:hrms/domain/entities/special_day_entity.dart';
 
 import '../../leave/data/leave_repository.dart';
 import '../../special_days/data/special_days_repository.dart';
@@ -18,8 +19,6 @@ class DashboardRepository {
 
     final today = ymd(DateTime.now());
 
-    // Leads see their own team.
-    // Admin and HR see company-wide employee information.
     final ids = (!Session.isAdmin && !Session.isHr && Session.isLead)
         ? await scopeIds()
         : null;
@@ -37,10 +36,6 @@ class DashboardRepository {
     final employeeFilter =
     ids == null ? '' : ' AND employee_id IN ${LocalDatasource.dbIn(ids)}';
 
-    // ----------------------------------------------------------
-    // EMPLOYEES
-    // ----------------------------------------------------------
-
     final employees = ids == null
         ? await LocalDatasource.dbCount(
       "SELECT COUNT(*) FROM employees WHERE status = 'Active'",
@@ -49,11 +44,6 @@ class DashboardRepository {
       "SELECT COUNT(*) FROM employees "
           "WHERE status = 'Active' AND id IN ${LocalDatasource.dbIn(ids)}",
     );
-
-    // ----------------------------------------------------------
-    // TODAY ATTENDANCE
-    // Count unique active employees only.
-    // ----------------------------------------------------------
 
     final attendanceEmployeeFilter = ids == null
         ? ''
@@ -92,10 +82,6 @@ class DashboardRepository {
       [today],
     );
 
-    // ----------------------------------------------------------
-    // PENDING LEAVES
-    // ----------------------------------------------------------
-
     final ownLeaveFilter =
     (!Session.isAdmin && Session.empId != null)
         ? ' AND employee_id != ${Session.empId}'
@@ -115,10 +101,6 @@ class DashboardRepository {
       'absent': absent,
       'pending': pending,
     };
-
-    // ----------------------------------------------------------
-    // RECRUITMENT - ADMIN / HR ONLY
-    // ----------------------------------------------------------
 
     if (Session.isAdmin || Session.isHr) {
       final jobsListed = await LocalDatasource.dbCount(
@@ -148,6 +130,11 @@ class DashboardRepository {
         [today],
       );
 
+      final interviews = await LocalDatasource.dbCount(
+        "SELECT COUNT(*) FROM interviews WHERE result = 'Scheduled' AND scheduled_at >= ?",
+        [today],
+      );
+
       result.addAll({
         'jobsListed': jobsListed,
         'openJobs': openJobs,
@@ -155,11 +142,8 @@ class DashboardRepository {
         'pendingJobs': pendingJobs,
         'candidates': candidates,
         'interviewsToday': interviewsToday,
+        'interviews': interviews,
       });
-
-      // --------------------------------------------------------
-      // CANDIDATE PIPELINE
-      // --------------------------------------------------------
 
       const stages = [
         'Applied',
@@ -194,17 +178,18 @@ class DashboardRepository {
 
     return result;
   }
+
   Future<Map<String, int>> fetchDashboardStats() => dashboard();
 
   // ------------------------------------------------------------
   // OTHER DASHBOARD DATA
   // ------------------------------------------------------------
 
-  Future<List<Rec>> balances(int empId, int year) {
+  Future<List<LeaveBalanceEntity>> balances(int empId, int year) {
     return LeaveRepository().balances(empId, year);
   }
 
-  Future<List<Rec>> fetchBalances(int empId, int year) {
+  Future<List<LeaveBalanceEntity>> fetchBalances(int empId, int year) {
     return balances(empId, year);
   }
 
@@ -216,11 +201,11 @@ class DashboardRepository {
     return upcomingHolidays(limit);
   }
 
-  Future<List<Rec>> upcomingSpecialDays([int days = 30]) {
+  Future<List<SpecialDayEntity>> upcomingSpecialDays([int days = 30]) {
     return SpecialDaysRepository().upcomingSpecialDays(days: days);
   }
 
-  Future<List<Rec>> fetchUpcomingSpecialDays(int days) {
+  Future<List<SpecialDayEntity>> fetchUpcomingSpecialDays(int days) {
     return upcomingSpecialDays(days);
   }
 }

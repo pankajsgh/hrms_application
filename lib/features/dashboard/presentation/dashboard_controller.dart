@@ -1,6 +1,6 @@
-
 import 'package:flutter/foundation.dart';
 import 'package:hrms/core/common.dart';
+import 'package:hrms/domain/entities/special_day_entity.dart';
 
 import '../data/dashboard_repository.dart';
 
@@ -13,7 +13,7 @@ class DashboardController extends ChangeNotifier {
   Map<String, int> stats = {};
 
   List<Rec> holidays = [];
-  List<Rec> specialDays = [];
+  List<SpecialDayEntity> specialDays = [];
 
   int count(String key) => stats[key] ?? 0;
 

@@ -1,13 +1,14 @@
 import 'package:flutter/foundation.dart';
-import 'package:hrms/core/common.dart';
+import 'package:hrms/domain/entities/employee_entity.dart';
+import 'package:hrms/domain/entities/user_entity.dart';
 import '../data/users_repository.dart';
 
 class UsersController extends ChangeNotifier {
   final UsersRepository _repository = UsersRepository();
 
   bool isLoading = false;
-  List<Rec> users = [];
-  List<Rec> activeEmployees = [];
+  List<UserEntity> users = [];
+  List<EmployeeEntity> activeEmployees = [];
 
   Future<void> loadUsers() async {
     isLoading = true;
@@ -26,7 +27,7 @@ class UsersController extends ChangeNotifier {
     return err;
   }
 
-  Future<void> updateUser(int id, Rec values) async {
+  Future<void> updateUser(int id, Map<String, Object?> values) async {
     await _repository.updateUser(id, values);
     await loadUsers();
   }

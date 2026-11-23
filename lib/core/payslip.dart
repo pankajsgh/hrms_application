@@ -29,7 +29,7 @@ pw.TableRow _row(String a, String b, {bool bold = false}) => pw.TableRow(
     children: [_cell(a, bold: bold), _cell(b, bold: bold, align: pw.TextAlign.right)]);
 
 /// Builds a payslip PDF for a payroll row and asks where to save it.
-Future<void> savePayslip(BuildContext context, Rec p) async {
+Future<void> savePayslip(BuildContext context, dynamic p) async {
   final doc = pw.Document();
   doc.addPage(
     pw.Page(

@@ -1,10 +1,11 @@
+
 import 'package:flutter/material.dart';
 
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/session.dart';
 import 'package:hrms/core/ui.dart';
-import 'package:hrms/features/leave/presentation/leave_page.dart';
-import '../../../core/storage_config.dart';
+import 'package:hrms/core/storage_config.dart';
+
 import '../../users/data/users_repository.dart';
 import '../../attendance/presentation/attendance_page.dart';
 import '../../dashboard/presentation/dashboard_page.dart';
@@ -17,9 +18,11 @@ import '../../recruitment/presentation/recruitment_page.dart';
 import '../../reports/presentation/reports_page.dart';
 import '../../special_days/presentation/special_days_page.dart';
 import '../../users/presentation/users_page.dart';
+import '../../leave/presentation/leave_page.dart';
 
 class _Nav {
-  _Nav(this.label, this.icon, this.build);
+  const _Nav(this.label, this.icon, this.build);
+
   final String label;
   final IconData icon;
   final Widget Function() build;
@@ -34,73 +37,173 @@ class Shell extends StatefulWidget {
 
 class _ShellState extends State<Shell> {
   int _index = 0;
-  late final List<_Nav> _navs = [
-    _Nav('Dashboard', Icons.dashboard_outlined, () => const DashboardFeaturePage()),
+
+  // Build navigation according to the current user's permissions.
+  List<_Nav> get _navs => [
+    _Nav(
+      'Dashboard',
+      Icons.dashboard_outlined,
+          () => const DashboardFeaturePage(),
+    ),
+
     if (Session.canEditEmployees)
-      _Nav('Employees', Icons.people_outline, () => const EmployeesFeaturePage()),
-    _Nav('Attendance', Icons.access_time, () => const AttendanceFeaturePage()),
-    _Nav('Leave', Icons.beach_access_outlined, () => const LeaveFeaturePage()),
-    _Nav('Payroll', Icons.payments_outlined, () => const PayrollFeaturePage()),
+      _Nav(
+        'Employees',
+        Icons.people_outline,
+            () => const EmployeesFeaturePage(),
+      ),
+
+    _Nav(
+      'Attendance',
+      Icons.access_time,
+          () => const AttendanceFeaturePage(),
+    ),
+
+    _Nav(
+      'Leave',
+      Icons.beach_access_outlined,
+          () => const LeaveFeaturePage(),
+    ),
+
+    _Nav(
+      'Payroll',
+      Icons.payments_outlined,
+          () => const PayrollFeaturePage(),
+    ),
+
     if (Session.canRecruit)
-      _Nav('Recruitment', Icons.person_search_outlined,
-          () => const RecruitmentFeaturePage()),
-    _Nav('Performance', Icons.trending_up, () => const PerformanceFeaturePage()),
-    _Nav('Documents', Icons.folder_open, () => const DocumentsFeaturePage()),
+      _Nav(
+        'Recruitment',
+        Icons.person_search_outlined,
+            () => const RecruitmentFeaturePage(),
+      ),
+
+    _Nav(
+      'Performance',
+      Icons.trending_up,
+          () => const PerformanceFeaturePage(),
+    ),
+
+    _Nav(
+      'Documents',
+      Icons.folder_open,
+          () => const DocumentsFeaturePage(),
+    ),
+
     if (Session.isHr)
-      _Nav('Special days', Icons.cake_outlined, () => const SpecialDaysFeaturePage()),
+      _Nav(
+        'Special days',
+        Icons.cake_outlined,
+            () => const SpecialDaysFeaturePage(),
+      ),
+
     if (Session.isHr)
-      _Nav('Reports', Icons.assessment_outlined, () => const ReportsFeaturePage()),
+      _Nav(
+        'Reports',
+        Icons.assessment_outlined,
+            () => const ReportsFeaturePage(),
+      ),
+
     if (Session.isAdmin)
-      _Nav('Users & Access', Icons.admin_panel_settings_outlined,
-          () => const UsersFeaturePage()),
+      _Nav(
+        'Users & Access',
+        Icons.admin_panel_settings_outlined,
+            () => const UsersFeaturePage(),
+      ),
   ];
 
   @override
   void initState() {
     super.initState();
+
     if (Session.user?['must_change'] == 1) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _changePassword(forced: true));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _changePassword(forced: true);
+        }
+      });
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // CHANGE PASSWORD
+  // ---------------------------------------------------------------------------
 
   Future<void> _changePassword({bool forced = false}) async {
     while (true) {
       if (!mounted) return;
-      final r = await formDialog(
+
+      final result = await formDialog(
         context,
-        forced ? 'Set a new password to continue' : 'Change password',
+        forced
+            ? 'Set a new password to continue'
+            : 'Change password',
         const [
           F('pw', 'New password', type: 'password', required: true),
           F('pw2', 'Confirm password', type: 'password', required: true),
         ],
         cancelable: !forced,
       );
-      if (r == null) return;
+
+      if (result == null) return;
       if (!mounted) return;
-      final pw = r['pw'] as String;
-      if (pw.length < 6) {
+
+      final password = result['pw'] as String;
+      final confirmPassword = result['pw2'] as String;
+
+      if (password.length < 6) {
         toast(context, 'Password must be at least 6 characters');
         continue;
       }
-      if (pw != r['pw2']) {
+
+      if (password != confirmPassword) {
         toast(context, 'Passwords do not match');
         continue;
       }
-      await UsersRepository().setPassword((Session.user!['id'] as num).toInt(), pw);
-      Session.user!['must_change'] = 0;
-      if (mounted) toast(context, 'Password updated');
-      return;
+
+      try {
+        await UsersRepository().setPassword(
+          (Session.user!['id'] as num).toInt(),
+          password,
+        );
+
+        Session.user!['must_change'] = 0;
+
+        if (mounted) {
+          toast(context, 'Password updated');
+        }
+
+        return;
+      } catch (e) {
+        if (mounted) {
+          toast(context, 'Password update failed: $e');
+        }
+      }
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // LOGOUT
+  // ---------------------------------------------------------------------------
+
   void _logout() {
     Session.clear();
-    Navigator.of(context)
-        .pushReplacement(MaterialPageRoute(builder: (_) => const AuthFeaturePage()));
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const AuthFeaturePage(),
+      ),
+          (route) => false,
+    );
   }
+
+  // ---------------------------------------------------------------------------
+  // ONLINE / OFFLINE
+  // ---------------------------------------------------------------------------
 
   Widget _onlineOfflineToggle(ColorScheme cs) {
     final isOnline = StorageConfig.mode != StorageMode.localOnly;
+
     return InkWell(
       borderRadius: BorderRadius.circular(10),
       onTap: () {
@@ -115,9 +218,14 @@ class _ShellState extends State<Shell> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 6,
+        ),
         decoration: BoxDecoration(
-          color: isOnline ? cs.primaryContainer : cs.surfaceContainerHighest,
+          color: isOnline
+              ? cs.primaryContainer
+              : cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
@@ -126,7 +234,9 @@ class _ShellState extends State<Shell> {
             Icon(
               isOnline ? Icons.cloud_done : Icons.cloud_off,
               size: 16,
-              color: isOnline ? cs.onPrimaryContainer : cs.onSurfaceVariant,
+              color: isOnline
+                  ? cs.onPrimaryContainer
+                  : cs.onSurfaceVariant,
             ),
             const SizedBox(width: 6),
             Text(
@@ -134,7 +244,9 @@ class _ShellState extends State<Shell> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: isOnline ? cs.onPrimaryContainer : cs.onSurfaceVariant,
+                color: isOnline
+                    ? cs.onPrimaryContainer
+                    : cs.onSurfaceVariant,
               ),
             ),
           ],
@@ -143,11 +255,16 @@ class _ShellState extends State<Shell> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // STORAGE SETTINGS
+  // ---------------------------------------------------------------------------
+
   Future<void> _showStorageSettings() async {
     StorageMode selectedMode = StorageConfig.mode;
+
     await showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
           title: const Text('Storage Mode Settings'),
           content: Column(
@@ -155,37 +272,71 @@ class _ShellState extends State<Shell> {
             children: [
               RadioListTile<StorageMode>(
                 title: const Text('Local Only (SQLite)'),
-                subtitle: const Text('Save and fetch data locally on device'),
+                subtitle: const Text(
+                  'Save and fetch data locally on device',
+                ),
                 value: StorageMode.localOnly,
                 groupValue: selectedMode,
-                onChanged: (v) => setStateDialog(() => selectedMode = v!),
+                onChanged: (value) {
+                  if (value != null) {
+                    setStateDialog(() {
+                      selectedMode = value;
+                    });
+                  }
+                },
               ),
               RadioListTile<StorageMode>(
                 title: const Text('Dio API Only'),
-                subtitle: const Text('Save and fetch data via remote Dio API'),
+                subtitle: const Text(
+                  'Save and fetch data via remote Dio API',
+                ),
                 value: StorageMode.apiOnly,
                 groupValue: selectedMode,
-                onChanged: (v) => setStateDialog(() => selectedMode = v!),
+                onChanged: (value) {
+                  if (value != null) {
+                    setStateDialog(() {
+                      selectedMode = value;
+                    });
+                  }
+                },
               ),
               RadioListTile<StorageMode>(
                 title: const Text('Local & API (Sync)'),
-                subtitle: const Text('Save locally and sync with Dio API'),
+                subtitle: const Text(
+                  'Save locally and sync with Dio API',
+                ),
                 value: StorageMode.localAndApi,
                 groupValue: selectedMode,
-                onChanged: (v) => setStateDialog(() => selectedMode = v!),
+                onChanged: (value) {
+                  if (value != null) {
+                    setStateDialog(() {
+                      selectedMode = value;
+                    });
+                  }
+                },
               ),
             ],
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
               child: const Text('Cancel'),
             ),
             FilledButton(
               onPressed: () {
                 StorageConfig.setMode(selectedMode);
-                Navigator.of(context).pop();
-                toast(context, 'Storage mode updated to ${selectedMode.name}');
+                Navigator.of(dialogContext).pop();
+
+                if (mounted) {
+                  toast(
+                    context,
+                    'Storage mode updated to ${selectedMode.name}',
+                  );
+                }
+
+                setState(() {});
               },
               child: const Text('Save'),
             ),
@@ -195,37 +346,79 @@ class _ShellState extends State<Shell> {
     );
   }
 
-  Widget _navTile(ColorScheme cs, int i, {bool drawer = false}) {
-    final sel = i == _index;
-    final fg = sel ? cs.onPrimaryContainer : cs.onSurfaceVariant;
+  // ---------------------------------------------------------------------------
+  // NAVIGATION TAP
+  // ---------------------------------------------------------------------------
+
+  void _selectPage(int index, {bool drawer = false}) {
+    debugPrint('Selected page: ${_navs[index].label}');
+
+    if (index < 0 || index >= _navs.length) return;
+
+    debugPrint('Selected page: ${_navs[index].label}');
+
+    setState(() {
+      _index = index;
+    });
+
+    if (drawer && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // NAVIGATION TILE
+  // ---------------------------------------------------------------------------
+
+  Widget _navTile(
+      ColorScheme cs,
+      int index, {
+        bool drawer = false,
+      }) {
+    final nav = _navs[index];
+    final selected = index == _index;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Material(
-        color: sel ? cs.primaryContainer : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            setState(() => _index = i);
-            if (drawer) Navigator.of(context).pop();
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-            child: Row(children: [
-              Icon(_navs[i].icon, size: 20, color: fg),
-              const SizedBox(width: 12),
-              Text(_navs[i].label,
-                  style: TextStyle(
-                      color: fg,
-                      fontWeight: sel ? FontWeight.w700 : FontWeight.w500)),
-            ]),
+        color: selected ? cs.primaryContainer : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        child: ListTile(
+          dense: true,
+          visualDensity: const VisualDensity(vertical: 1),
+          leading: Icon(
+            nav.icon,
+            color: selected
+                ? cs.onPrimaryContainer
+                : cs.onSurfaceVariant,
           ),
+          title: Text(
+            nav.label,
+            style: TextStyle(
+              fontWeight: selected
+                  ? FontWeight.w700
+                  : FontWeight.w500,
+              color: selected
+                  ? cs.onPrimaryContainer
+                  : cs.onSurfaceVariant,
+            ),
+          ),
+          onTap: () {
+            _selectPage(index, drawer: drawer);
+          },
         ),
       ),
     );
   }
 
-  Widget _sidebar(ColorScheme cs, {bool drawer = false}) {
+  // ---------------------------------------------------------------------------
+  // SIDEBAR / DRAWER
+  // ---------------------------------------------------------------------------
+
+  Widget _sidebar(
+      ColorScheme cs, {
+        bool drawer = false,
+      }) {
     return Container(
       width: drawer ? null : 250,
       decoration: BoxDecoration(
@@ -233,120 +426,192 @@ class _ShellState extends State<Shell> {
         border: drawer
             ? null
             : Border(
-                right: BorderSide(color: cs.outlineVariant.withOpacity(0.6))),
+          right: BorderSide(
+            color: cs.outlineVariant.withOpacity(0.6),
+          ),
+        ),
       ),
-      child: Column(children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
-          child: Row(children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [cs.primary, cs.tertiary]),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(Icons.badge_outlined, color: cs.onPrimary),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('HRMS',
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        cs.primary,
+                        cs.tertiary,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.badge_outlined,
+                    color: cs.onPrimary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'HRMS',
                         style: Theme.of(context)
                             .textTheme
                             .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800)),
-                    Text(kCompany,
+                            ?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        kCompany,
                         style: Theme.of(context).textTheme.bodySmall,
-                        overflow: TextOverflow.ellipsis),
-                  ]),
-            ),
-          ]),
-        ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            children: [
-              for (var i = 0; i < _navs.length; i++)
-                _navTile(cs, i, drawer: drawer)
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: cs.primaryContainer,
-                    foregroundColor: cs.onPrimaryContainer,
-                    child: Text(
-                        Session.name.isEmpty ? '?' : Session.name[0].toUpperCase()),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(Session.name,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w600)),
-                          Text(kRoles[Session.role] ?? Session.role,
-                              style: Theme.of(context).textTheme.bodySmall),
-                        ]),
-                  ),
-                  PopupMenuButton<String>(
-                    tooltip: 'Account & Settings',
-                    icon: const Icon(Icons.more_vert),
-                    onSelected: (v) {
-                      if (v == 'pw') _changePassword();
-                      else if (v == 'storage') _showStorageSettings();
-                      else _logout();
-                    },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'pw', child: Text('Change password')),
-                      PopupMenuItem(value: 'storage', child: Text('Storage Settings')),
-                      PopupMenuItem(value: 'out', child: Text('Sign out')),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
-                ]),
-                const SizedBox(height: 8),
-                Center(child: _onlineOfflineToggle(cs)),
+                ),
               ],
             ),
           ),
-        ),
-      ]),
+
+          // Navigation items
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              children: [
+                for (var i = 0; i < _navs.length; i++)
+                  _navTile(
+                    cs,
+                    i,
+                    drawer: drawer,
+                  ),
+              ],
+            ),
+          ),
+
+          // User account section
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: cs.primaryContainer,
+                        foregroundColor: cs.onPrimaryContainer,
+                        child: Text(
+                          Session.name.isEmpty
+                              ? '?'
+                              : Session.name[0].toUpperCase(),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              Session.name,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              kRoles[Session.role] ?? Session.role,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      PopupMenuButton<String>(
+                        tooltip: 'Account & Settings',
+                        icon: const Icon(Icons.more_vert),
+                        onSelected: (value) {
+                          if (value == 'pw') {
+                            _changePassword();
+                          } else if (value == 'storage') {
+                            _showStorageSettings();
+                          } else if (value == 'out') {
+                            _logout();
+                          }
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                            value: 'pw',
+                            child: Text('Change password'),
+                          ),
+                          PopupMenuItem(
+                            value: 'storage',
+                            child: Text('Storage Settings'),
+                          ),
+                          PopupMenuItem(
+                            value: 'out',
+                            child: Text('Sign out'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: _onlineOfflineToggle(cs),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // BUILD
+  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    // Force white background for all feature pages.
+    final navs = _navs;
+
+    // Protect against an invalid index if permissions change.
+    if (_index >= navs.length) {
+      _index = 0;
+    }
+
     final whiteTheme = Theme.of(context).copyWith(
       scaffoldBackgroundColor: Colors.white,
       canvasColor: Colors.white,
     );
 
-    final page = Theme(
-      data: whiteTheme,
-      child: _navs[_index].build(),
-    );
-
     final wide = MediaQuery.of(context).size.width >= 800;
+
+    // KeyedSubtree recreates the selected page when the index changes.
+    final page = KeyedSubtree(
+      key: ValueKey(navs[_index].label),
+      child: Theme(
+        data: whiteTheme,
+        child: navs[_index].build(),
+      ),
+    );
 
     if (wide) {
       return Scaffold(
@@ -354,7 +619,9 @@ class _ShellState extends State<Shell> {
         body: Row(
           children: [
             _sidebar(cs),
-            Expanded(child: page),
+            Expanded(
+              child: page,
+            ),
           ],
         ),
       );
@@ -364,7 +631,7 @@ class _ShellState extends State<Shell> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          _navs[_index].label,
+          navs[_index].label,
           style: const TextStyle(
             fontWeight: FontWeight.w700,
             color: Colors.black87,
@@ -377,7 +644,9 @@ class _ShellState extends State<Shell> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: Center(child: _onlineOfflineToggle(cs)),
+            child: Center(
+              child: _onlineOfflineToggle(cs),
+            ),
           ),
         ],
         shape: Border(
@@ -389,11 +658,13 @@ class _ShellState extends State<Shell> {
       drawer: Drawer(
         backgroundColor: Colors.white,
         child: SafeArea(
-          child: _sidebar(cs, drawer: true),
+          child: _sidebar(
+            cs,
+            drawer: true,
+          ),
         ),
       ),
       body: page,
     );
   }
-
 }

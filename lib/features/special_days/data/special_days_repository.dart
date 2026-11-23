@@ -2,25 +2,31 @@ import 'package:hrms/core/common.dart';
 import 'package:hrms/core/db.dart';
 import 'package:hrms/core/session.dart';
 import 'package:hrms/data/repositories/repository_impl.dart';
+import 'package:hrms/domain/entities/employee_entity.dart';
+import 'package:hrms/domain/entities/special_day_entity.dart';
 import '../../employees/data/employees_repository.dart';
 
 class SpecialDaysRepository {
-  Future<List<Rec>> specialDays() => Repo.queryOrLocal('special_days', {}, () => Db.db.rawQuery(
-      'SELECT s.*, e.name AS emp_name FROM special_days s '
-      'JOIN employees e ON e.id = s.employee_id '
-      'ORDER BY e.name COLLATE NOCASE, s.date'));
+  Future<List<SpecialDayEntity>> specialDays() async {
+    final raw = await Repo.queryOrLocal('special_days', {}, () => Db.db.rawQuery(
+        'SELECT s.*, e.name AS emp_name FROM special_days s '
+        'JOIN employees e ON e.id = s.employee_id '
+        'ORDER BY e.name COLLATE NOCASE, s.date'));
+    return raw.map((r) => SpecialDayEntity.fromMap(r)).toList();
+  }
 
-  Future<List<Rec>> fetchSpecialDays() => specialDays();
+  Future<List<SpecialDayEntity>> fetchSpecialDays() => specialDays();
 
-  Future<void> saveSpecialDay(Rec data, {int? id}) async {
+  Future<void> saveSpecialDay(Object data, {int? id}) async {
+    final map = data is SpecialDayEntity ? data.toMap() : (data as Map<String, Object?>);
     if (id == null) {
       await Repo.saveData('special_days', {}, {
-        ...data,
+        ...map,
         'created_by': Session.empId,
         'created_on': ymd(DateTime.now()),
       });
     } else {
-      await Repo.saveData('special_days', {'id': '$id'}, data);
+      await Repo.saveData('special_days', {'id': '$id'}, map);
     }
   }
 
@@ -31,14 +37,14 @@ class SpecialDaysRepository {
     return DateTime(year, d.month, d.day > last ? last : d.day);
   }
 
-  Future<List<Rec>> upcomingSpecialDays({int days = 30}) async {
+  Future<List<SpecialDayEntity>> upcomingSpecialDays({int days = 30}) async {
     final rows = await Db.db.rawQuery(
         'SELECT s.*, e.name AS emp_name FROM special_days s '
         'JOIN employees e ON e.id = s.employee_id '
         "WHERE e.status = 'Active'");
     final t = today();
     final tUtc = DateTime.utc(t.year, t.month, t.day);
-    final out = <Rec>[];
+    final out = <SpecialDayEntity>[];
     for (final r in rows) {
       final orig = DateTime.tryParse(r.s('date'));
       if (orig == null) continue;
@@ -53,20 +59,21 @@ class SpecialDaysRepository {
       final away =
           DateTime.utc(next.year, next.month, next.day).difference(tUtc).inDays;
       if (away > days) continue;
-      out.add({
+      final map = {
         ...r,
         'next': ymd(next),
         'away': away,
         'years': next.year - orig.year,
-      });
+      };
+      out.add(SpecialDayEntity.fromMap(map));
     }
-    out.sort((a, b) => (a['away'] as int).compareTo(b['away'] as int));
+    out.sort((a, b) => (a.away ?? 0).compareTo(b.away ?? 0));
     return out;
   }
 
-  Future<List<Rec>> fetchUpcomingSpecialDays(int days) => upcomingSpecialDays(days: days);
+  Future<List<SpecialDayEntity>> fetchUpcomingSpecialDays(int days) => upcomingSpecialDays(days: days);
 
-  Future<List<Rec>> activeEmployees() => EmployeesRepository().employees(activeOnly: true);
+  Future<List<EmployeeEntity>> activeEmployees() => EmployeesRepository().employees(activeOnly: true);
 
-  Future<List<Rec>> fetchActiveEmployees() => activeEmployees();
+  Future<List<EmployeeEntity>> fetchActiveEmployees() => activeEmployees();
 }

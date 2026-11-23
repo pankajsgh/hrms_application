@@ -1,9 +1,11 @@
 
 import 'package:flutter/material.dart';
+import 'package:hrms/domain/entities/leave_entity.dart';
 import 'package:intl/intl.dart';
 
 import 'package:hrms/core/session.dart';
 import 'package:hrms/core/ui.dart';
+import 'package:hrms/domain/entities/attendance_entity.dart';
 import 'package:hrms/features/attendance/data/attendance_repository.dart';
 import 'package:hrms/features/leave/data/leave_repository.dart';
 
@@ -24,11 +26,16 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
   int _year = DateTime.now().year;
   int _month = DateTime.now().month;
 
-  List<Rec> _records = [];
+  // AttendanceRepository returns AttendanceEntity, not Rec.
+  List<AttendanceEntity> _records = [];
+
+  // LeaveRepository still returns Rec.
   List<Rec> _balances = [];
+
   Set<String> _holidays = {};
 
-  Rec? _todayRecord;
+  AttendanceEntity? _todayRecord;
+
   DateTime _selectedDate = today();
 
   bool _loading = true;
@@ -40,6 +47,7 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
 
   Future<void> _load({bool showLoading = true}) async {
     final empId = Session.empId;
+
     if (empId == null) return;
 
     if (showLoading && mounted) {
@@ -57,20 +65,26 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
       if (!mounted) return;
 
       setState(() {
-        _records = results[0] as List<Rec>;
-        _holidays = results[1] as Set<String>;
-        _balances = results[2] as List<Rec>;
-        _todayRecord = results[3] as Rec?;
+        _records = List<AttendanceEntity>.from(results[0] as List);
+        _holidays = Set<String>.from(results[1] as Set);
+
+        _balances = (results[2] as List<LeaveBalanceEntity>)
+            .map((balance) => balance.toMap())
+            .toList();
+
+        _todayRecord = results[3] as AttendanceEntity?;
         _loading = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('ATTENDANCE LOAD ERROR: $e');
+      debugPrintStack(stackTrace: stackTrace);
+
       if (!mounted) return;
 
       setState(() => _loading = false);
       _showMessage('Unable to load attendance: $e');
     }
   }
-
   Future<void> _refresh() => _load(showLoading: false);
 
   void _showMessage(String message) {
@@ -96,6 +110,7 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
 
   Future<void> _markAttendance(bool checkIn) async {
     final empId = Session.empId;
+
     if (empId == null || _saving) return;
 
     setState(() => _saving = true);
@@ -116,7 +131,10 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
             ? 'Check-in successful.'
             : 'Check-out successful.',
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('ATTENDANCE UPDATE ERROR: $e');
+      debugPrintStack(stackTrace: stackTrace);
+
       _showMessage('Attendance update failed: $e');
     } finally {
       if (mounted) {
@@ -129,17 +147,23 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
   // HELPERS
   // ============================================================
 
-  Map<String, Rec> get _recordsByDate => {
-    for (final record in _records) record.s('date'): record,
+  Map<String, AttendanceEntity> get _recordsByDate => {
+    for (final record in _records)
+      record.s('date'): record,
   };
 
-  Rec? _recordFor(DateTime date) => _recordsByDate[ymd(date)];
+  AttendanceEntity? _recordFor(DateTime date) {
+    return _recordsByDate[ymd(date)];
+  }
 
   String _statusFor(DateTime date) {
     final record = _recordFor(date);
     final key = ymd(date);
 
-    if (record != null) return record.s('status');
+    if (record != null && record.s('status').isNotEmpty) {
+      return record.s('status');
+    }
+
     if (_holidays.contains(key)) return 'Holiday';
 
     if (date.weekday == DateTime.saturday ||
@@ -201,7 +225,7 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
     return duration == null ? '--' : fmtDuration(duration);
   }
 
-  String _workedTimeFor(Rec? record) {
+  String _workedTimeFor(AttendanceEntity? record) {
     if (record == null) return '--';
 
     final duration = workedBetween(
@@ -407,7 +431,6 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
             ],
           ),
           const SizedBox(height: 13),
-
           Row(
             children: [
               _metric(
@@ -436,9 +459,7 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
               ),
             ],
           ),
-
           const SizedBox(height: 13),
-
           Row(
             children: [
               Expanded(
@@ -456,7 +477,10 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
                         strokeWidth: 2,
                       ),
                     )
-                        : const Icon(Icons.login_rounded, size: 15),
+                        : const Icon(
+                      Icons.login_rounded,
+                      size: 15,
+                    ),
                     label: Text(
                       _hasCheckedIn ? 'Checked In' : 'Check In',
                       style: const TextStyle(fontSize: 11),
@@ -480,7 +504,10 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
                         !_saving
                         ? () => _markAttendance(false)
                         : null,
-                    icon: const Icon(Icons.logout_rounded, size: 15),
+                    icon: const Icon(
+                      Icons.logout_rounded,
+                      size: 15,
+                    ),
                     label: Text(
                       _hasCheckedOut ? 'Completed' : 'Check Out',
                       style: const TextStyle(fontSize: 11),
@@ -495,7 +522,6 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
               ),
             ],
           ),
-
           if (_saving) ...[
             const SizedBox(height: 9),
             const LinearProgressIndicator(minHeight: 2),
@@ -528,20 +554,22 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-             children: [
-               Icon(icon, color: color, size: 15),
-               const SizedBox(width: 12),
-               Text(
-                 label,
-                 maxLines: 1,
-                 overflow: TextOverflow.ellipsis,
-                 style: const TextStyle(
-                   fontSize: 9,
-                   color: Colors.grey,
-                   fontWeight: FontWeight.w500,
-                 ),
-               ),
-             ],
+              children: [
+                Icon(icon, color: color, size: 15),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 9,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 3),
             FittedBox(
@@ -584,7 +612,6 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
             ),
           ),
           const SizedBox(height: 11),
-
           if (_balances.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
@@ -599,9 +626,12 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
           else
             LayoutBuilder(
               builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 340 ? 2 : 1;
+                final columns =
+                constraints.maxWidth >= 340 ? 2 : 1;
+
                 final itemWidth =
-                    (constraints.maxWidth - (columns - 1) * 7) /
+                    (constraints.maxWidth -
+                        (columns - 1) * 7) /
                         columns;
 
                 return Wrap(
@@ -619,9 +649,8 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
                     return SizedBox(
                       width: itemWidth,
                       child: Material(
-                        color: cs.surfaceContainerHighest.withValues(
-                          alpha: 0.35,
-                        ),
+                        color: cs.surfaceContainerHighest
+                            .withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(10),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(10),
@@ -634,7 +663,8 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
                           child: Padding(
                             padding: const EdgeInsets.all(10),
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment:
+                              CrossAxisAlignment.start,
                               children: [
                                 Row(
                                   children: [
@@ -642,10 +672,12 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
                                       child: Text(
                                         balance.s('name'),
                                         maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                        overflow:
+                                        TextOverflow.ellipsis,
                                         style: const TextStyle(
                                           fontSize: 10,
-                                          fontWeight: FontWeight.w600,
+                                          fontWeight:
+                                          FontWeight.w600,
                                         ),
                                       ),
                                     ),
@@ -675,11 +707,13 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
                                 ),
                                 const SizedBox(height: 7),
                                 ClipRRect(
-                                  borderRadius: BorderRadius.circular(5),
+                                  borderRadius:
+                                  BorderRadius.circular(5),
                                   child: LinearProgressIndicator(
                                     value: progress,
                                     minHeight: 4,
-                                    backgroundColor: cs.outlineVariant
+                                    backgroundColor:
+                                    cs.outlineVariant
                                         .withValues(alpha: 0.35),
                                   ),
                                 ),
@@ -727,7 +761,8 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 180),
                   child: Text(
-                    DateFormat('EEE, d MMM yyyy').format(_selectedDate),
+                    DateFormat('EEE, d MMM yyyy')
+                        .format(_selectedDate),
                     key: ValueKey(ymd(_selectedDate)),
                     style: const TextStyle(
                       fontSize: 11,
@@ -777,20 +812,39 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
     );
   }
 
-  Widget _detail(String title, String value,
+  Widget _detail(
+      String title,
+      String value,
       IconData icon,
-      Color color,) {
+      Color color,
+      ) {
     return Expanded(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(icon, color: color,),
+          Icon(icon, color: color),
           const SizedBox(width: 12),
-          Text(
-            value.isEmpty ? '--' : value,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 8,
+                    color: Colors.grey,
+                  ),
+                ),
+                Text(
+                  value.isEmpty ? '--' : value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -836,7 +890,9 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
                   onPressed: _goToToday,
                   style: TextButton.styleFrom(
                     visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 7),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                    ),
                   ),
                   child: const Text(
                     'Today',
@@ -847,21 +903,25 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
                 tooltip: 'Previous month',
                 visualDensity: VisualDensity.compact,
                 onPressed: () => _changeMonth(-1),
-                icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                icon: const Icon(
+                  Icons.chevron_left_rounded,
+                  size: 20,
+                ),
               ),
               IconButton(
                 tooltip: 'Next month',
                 visualDensity: VisualDensity.compact,
                 onPressed: () => _changeMonth(1),
-                icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                icon: const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                ),
               ),
             ],
           ),
-
           const SizedBox(height: 6),
           _selectedDayDetails(),
           const SizedBox(height: 13),
-
           Row(
             children: weekdays.map((day) {
               return Expanded(
@@ -878,9 +938,7 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
               );
             }).toList(),
           ),
-
           const SizedBox(height: 8),
-
           LayoutBuilder(
             builder: (context, constraints) {
               final cellHeight =
@@ -890,7 +948,8 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: offset + daysInMonth,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate:
+                SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 7,
                   mainAxisExtent: cellHeight,
                   mainAxisSpacing: 4,
@@ -907,7 +966,9 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
                   final status = _statusFor(date);
                   final color = _statusColor(status);
 
-                  final selected = ymd(date) == ymd(_selectedDate);
+                  final selected =
+                      ymd(date) == ymd(_selectedDate);
+
                   final isToday = ymd(date) == ymd(today());
 
                   return Tooltip(
@@ -919,29 +980,36 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
                         onTap: () => _selectDate(date),
                         borderRadius: BorderRadius.circular(9),
                         child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 170),
+                          duration:
+                          const Duration(milliseconds: 170),
                           decoration: BoxDecoration(
                             color: selected
                                 ? cs.primary.withValues(alpha: 0.12)
                                 : color.withValues(alpha: 0.055),
-                            borderRadius: BorderRadius.circular(9),
+                            borderRadius:
+                            BorderRadius.circular(9),
                             border: Border.all(
                               color: selected
                                   ? cs.primary
                                   : isToday
-                                  ? cs.primary.withValues(alpha: 0.55)
+                                  ? cs.primary.withValues(
+                                alpha: 0.55,
+                              )
                                   : Colors.transparent,
-                              width: selected || isToday ? 1.2 : 0.5,
+                              width:
+                              selected || isToday ? 1.2 : 0.5,
                             ),
                           ),
                           child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisAlignment:
+                            MainAxisAlignment.center,
                             children: [
                               Text(
                                 '$day',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  fontWeight: selected || isToday
+                                  fontWeight:
+                                  selected || isToday
                                       ? FontWeight.w700
                                       : FontWeight.w500,
                                   color: selected
@@ -951,7 +1019,9 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
                               ),
                               const SizedBox(height: 4),
                               AnimatedContainer(
-                                duration: const Duration(milliseconds: 170),
+                                duration: const Duration(
+                                  milliseconds: 170,
+                                ),
                                 height: selected ? 6 : 5,
                                 width: selected ? 6 : 5,
                                 decoration: BoxDecoration(
@@ -969,9 +1039,7 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
               );
             },
           ),
-
           const SizedBox(height: 13),
-
           Wrap(
             spacing: 12,
             runSpacing: 8,

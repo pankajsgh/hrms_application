@@ -1,69 +1,177 @@
 import 'package:flutter/foundation.dart';
+
 import 'package:hrms/core/common.dart';
+import 'package:hrms/domain/entities/attendance_entity.dart';
+
 import '../data/attendance_repository.dart';
 
 class AttendanceController extends ChangeNotifier {
   final AttendanceRepository _repository = AttendanceRepository();
 
   bool isLoading = false;
-  Rec? todayRecord;
-  List<Rec> monthRecordsList = [];
+
+  AttendanceEntity? todayRecord;
+
+  List<AttendanceEntity> monthRecordsList = [];
+
   Set<String> holidays = {};
-  List<Rec> dayAttendanceList = [];
 
-  Future<void> loadTodayAttendance(int empId, String dateStr) async {
+  List<AttendanceEntity> dayAttendanceList = [];
+
+  // ============================================================
+  // LOADING HELPER
+  // ============================================================
+
+  Future<void> _loadData(
+      Future<void> Function() operation,
+      ) async {
     isLoading = true;
     notifyListeners();
 
-    todayRecord = await _repository.fetchAttendanceOf(empId, dateStr);
-
-    isLoading = false;
-    notifyListeners();
+    try {
+      await operation();
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
   }
 
-  Future<void> loadMonthRecords(int empId, int y, int m) async {
-    isLoading = true;
-    notifyListeners();
+  // ============================================================
+  // TODAY ATTENDANCE
+  // ============================================================
 
-    monthRecordsList = await _repository.fetchMonthRecords(empId, y, m);
-    holidays = await _repository.fetchHolidaySet();
-
-    isLoading = false;
-    notifyListeners();
+  Future<void> loadTodayAttendance(
+      int empId,
+      String dateStr,
+      ) async {
+    await _loadData(() async {
+      todayRecord = await _repository.fetchAttendanceOf(
+        empId,
+        dateStr,
+      );
+    });
   }
+
+  // ============================================================
+  // MONTH ATTENDANCE
+  // ============================================================
+
+  Future<void> loadMonthRecords(
+      int empId,
+      int year,
+      int month,
+      ) async {
+    await _loadData(() async {
+      final results = await Future.wait<dynamic>([
+        _repository.fetchMonthRecords(empId, year, month),
+        _repository.fetchHolidaySet(),
+      ]);
+
+      monthRecordsList = results[0] as List<AttendanceEntity>;
+      holidays = results[1] as Set<String>;
+    });
+  }
+
+  // ============================================================
+  // DAY ATTENDANCE
+  // ============================================================
 
   Future<void> loadDayAttendance(String dateStr) async {
-    isLoading = true;
-    notifyListeners();
-
-    dayAttendanceList = await _repository.fetchDayAttendance(dateStr);
-
-    isLoading = false;
-    notifyListeners();
+    await _loadData(() async {
+      dayAttendanceList =
+      await _repository.fetchDayAttendance(dateStr);
+    });
   }
 
-  Future<void> checkIn(int empId, [DateTime? at]) async {
-    await _repository.checkIn(empId, at);
-    await loadTodayAttendance(empId, ymd(DateTime.now()));
+  // ============================================================
+  // CHECK IN
+  // ============================================================
+
+  Future<void> checkIn(
+      int empId, [
+        DateTime? at,
+      ]) async {
+    final time = at ?? DateTime.now();
+
+    await _repository.checkIn(empId, time);
+
+    await loadTodayAttendance(
+      empId,
+      ymd(time),
+    );
   }
 
-  Future<void> checkOut(int empId, [DateTime? at]) async {
-    await _repository.checkOut(empId, at);
-    await loadTodayAttendance(empId, ymd(DateTime.now()));
+  // ============================================================
+  // CHECK OUT
+  // ============================================================
+
+  Future<void> checkOut(
+      int empId, [
+        DateTime? at,
+      ]) async {
+    final time = at ?? DateTime.now();
+
+    await _repository.checkOut(empId, time);
+
+    await loadTodayAttendance(
+      empId,
+      ymd(time),
+    );
   }
 
-  Future<void> setStatus(int empId, String date, String status) async {
-    await _repository.setStatus(empId, date, status);
+  // ============================================================
+  // UPDATE STATUS
+  // ============================================================
+
+  Future<void> setStatus(
+      int empId,
+      String date,
+      String status,
+      ) async {
+    await _repository.setStatus(
+      empId,
+      date,
+      status,
+    );
+
     await loadDayAttendance(date);
   }
 
-  Future<void> setTime(int empId, String date, {DateTime? inTime, DateTime? outTime}) async {
-    await _repository.setTime(empId, date, inTime: inTime, outTime: outTime);
+  // ============================================================
+  // UPDATE TIME
+  // ============================================================
+
+  Future<void> setTime(
+      int empId,
+      String date, {
+        DateTime? inTime,
+        DateTime? outTime,
+      }) async {
+    await _repository.setTime(
+      empId,
+      date,
+      inTime: inTime,
+      outTime: outTime,
+    );
+
     await loadDayAttendance(date);
   }
 
-  Future<void> setNote(int empId, String date, String note) async {
-    await _repository.setNote(empId, date, note);
+  // ============================================================
+  // UPDATE NOTE
+  // ============================================================
+
+  Future<void> setNote(
+      int empId,
+      String date,
+      String note,
+      ) async {
+    await _repository.setNote(
+      empId,
+      date,
+      note,
+    );
+
     await loadDayAttendance(date);
   }
 }

@@ -1,8 +1,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:hrms/comman_widget/customer_dropdown.dart';
-
 import 'package:hrms/core/common.dart';
+import 'package:hrms/core/ui.dart';
+import 'package:hrms/domain/entities/recruitment_entity.dart';
 
 class CandidateFormDialog extends StatefulWidget {
   const CandidateFormDialog({
@@ -12,14 +13,14 @@ class CandidateFormDialog extends StatefulWidget {
     this.initialJobId,
   });
 
-  final List<Rec> jobs;
-  final Rec? candidate;
+  final List<JobEntity> jobs;
+  final CandidateEntity? candidate;
   final dynamic initialJobId;
 
   static Future<Map<String, Object?>?> show(
       BuildContext context, {
-        required List<Rec> jobs,
-        Rec? candidate,
+        required List<JobEntity> jobs,
+        CandidateEntity? candidate,
         dynamic initialJobId,
       }) {
     return showDialog<Map<String, Object?>>(
@@ -49,14 +50,14 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
   late final TextEditingController _salary;
   late final TextEditingController _notes;
 
-  late final List<Rec> _availableJobs;
+  late final List<JobEntity> _availableJobs;
 
   String? _jobId;
   String _source = '';
   String _rating = '0';
   String _stage = 'Applied';
 
-  Rec? get _candidate => widget.candidate;
+  CandidateEntity? get _candidate => widget.candidate;
   bool get _isNew => _candidate == null;
 
   static const Map<String, String> _ratings = {
@@ -74,44 +75,50 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
 
     final c = _candidate;
 
-    _availableJobs = widget.jobs.where((j) {
-      return j.s('approval') == 'Approved' ||
-          j['id'].toString() == c?['job_id']?.toString();
+    // Approved jobs plus the candidate's current job.
+    _availableJobs = widget.jobs.where((job) {
+      return job.id != null &&
+          (job.approval == 'Approved' || job.id == c?.jobId);
     }).toList();
 
-    final currentJob = c?['job_id']?.toString();
+    final currentJob = c?.jobId.toString();
     final requestedJob = widget.initialJobId?.toString();
 
-    _jobId = _availableJobs.any(
-          (j) => j['id'].toString() == currentJob,
-    )
-        ? currentJob
-        : _availableJobs.any(
-          (j) => j['id'].toString() == requestedJob,
-    )
-        ? requestedJob
-        : _availableJobs.isNotEmpty
-        ? _availableJobs.first['id'].toString()
-        : null;
+    if (_availableJobs.any(
+          (job) => job.id.toString() == currentJob,
+    )) {
+      _jobId = currentJob;
+    } else if (_availableJobs.any(
+          (job) => job.id.toString() == requestedJob,
+    )) {
+      _jobId = requestedJob;
+    } else if (_availableJobs.isNotEmpty) {
+      _jobId = _availableJobs.first.id.toString();
+    }
 
-    _name = TextEditingController(text: c?.s('name') ?? '');
-    _email = TextEditingController(text: c?.s('email') ?? '');
-    _phone = TextEditingController(text: c?.s('phone') ?? '');
+    _name = TextEditingController(text: c?.name ?? '');
+    _email = TextEditingController(text: c?.email ?? '');
+    _phone = TextEditingController(text: c?.phone ?? '');
+
     _experience = TextEditingController(
-      text: c?['experience_years']?.toString() ?? '',
+      text: c?.experienceYears.toString() ?? '',
     );
-    _company = TextEditingController(
-      text: c?.s('current_company') ?? '',
-    );
-    _salary = TextEditingController(
-      text: c?['expected_salary']?.toString() ?? '',
-    );
-    _notes = TextEditingController(text: c?.s('notes') ?? '');
 
-    _source = c?.s('source') ?? '';
-    _rating = c?['rating']?.toString() ?? '0';
-    _stage = c?.s('stage').isNotEmpty == true
-        ? c!.s('stage')
+    _company = TextEditingController(
+      text: c?.currentCompany ?? '',
+    );
+
+    _salary = TextEditingController(
+      text: c?.expectedSalary.toString() ?? '',
+    );
+
+    _notes = TextEditingController(text: c?.notes ?? '');
+
+    _source = c?.source ?? '';
+    _rating = c?.rating.toString() ?? '0';
+
+    _stage = c?.stage.isNotEmpty == true
+        ? c!.stage
         : 'Applied';
 
     if (!_ratings.containsKey(_rating)) {
@@ -134,7 +141,10 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_jobId == null) return;
+    if (_jobId == null) {
+      toast(context, 'Please select a job opening');
+      return;
+    }
 
     Navigator.pop<Map<String, Object?>>(context, {
       'job': _jobId!,
@@ -283,67 +293,50 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-
                         _CandidateSection(
                           title: 'Personal information',
                           subtitle: 'Candidate contact details',
                           icon: Icons.person_outline_rounded,
                           children: [
                             _row(
-                            CustomDropdown<String>(
-                              label: 'Applying for',
-                              value: _jobId,
-                              icon: Icons.work_outline,
-                              hint: 'Select job opening',
-                              items: [
-                                for (final j in _availableJobs)
-                                  DropdownMenuItem<String>(
-                                    value: j['id'].toString(),
-                                    child: Text(
-                                      j.s('title'),
-                                      overflow: TextOverflow.ellipsis,
+                              CustomDropdown<String>(
+                                label: 'Applying for',
+                                value: _jobId,
+                                icon: Icons.work_outline,
+                                hint: 'Select job opening',
+                                items: [
+                                  for (final job in _availableJobs)
+                                    DropdownMenuItem<String>(
+                                      value: job.id.toString(),
+                                      child: Text(
+                                        job.title,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
-                                  ),
-                              ],
-                              onChanged: (v) {
-                                setState(() => _jobId = v);
-                              },
-                            ),
-
+                                ],
+                                onChanged: (value) {
+                                  setState(() => _jobId = value);
+                                },
+                              ),
                               CustomDropdown<String>(
                                 label: 'Source',
-                                value: _source,
+                                value: opts(kSources).containsKey(_source)
+                                    ? _source
+                                    : null,
                                 icon: Icons.source_outlined,
                                 hint: 'Select Source',
-                                items:  [
+                                items: [
                                   for (final e in opts(kSources).entries)
-                                    DropdownMenuItem(
+                                    DropdownMenuItem<String>(
                                       value: e.key,
                                       child: Text(e.value),
                                     ),
                                 ],
-                                onChanged: (v) {
-                                  setState(() => _source = v ?? '');
+                                onChanged: (value) {
+                                  setState(() => _source = value ?? '');
                                 },
                               ),
-                              // _dropdown(
-                              //   label: 'Source',
-                              //   value: opts(kSources).containsKey(_source)
-                              //       ? _source
-                              //       : null,
-                              //   icon: Icons.source_outlined,
-                              //   items: [
-                              //     for (final e in opts(kSources).entries)
-                              //       DropdownMenuItem(
-                              //         value: e.key,
-                              //         child: Text(e.value),
-                              //       ),
-                              //   ],
-                              //   onChanged: (v) {
-                              //     setState(() => _source = v ?? '');
-                              //   },
-                              // ),
-                           ),
+                            ),
                             _gap(),
                             _row(
                               _input(
@@ -351,12 +344,11 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
                                 'Full name *',
                                 icon: Icons.badge_outlined,
                                 hint: 'Enter candidate name',
-                                validator: (v) =>
-                                v == null || v.trim().isEmpty
+                                validator: (value) =>
+                                value == null || value.trim().isEmpty
                                     ? 'Name is required'
                                     : null,
                               ),
-
                               _input(
                                 _phone,
                                 'Phone number',
@@ -365,26 +357,26 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
                               ),
                             ),
                             _gap(),
-
                             _input(
                               _email,
                               'Email address',
                               icon: Icons.email_outlined,
                               keyboard: TextInputType.emailAddress,
-                              validator: (v) {
-                                final email = v?.trim() ?? '';
+                              validator: (value) {
+                                final email = value?.trim() ?? '';
+
                                 if (email.isNotEmpty &&
-                                    !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                                        .hasMatch(email)) {
+                                    !RegExp(
+                                      r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                                    ).hasMatch(email)) {
                                   return 'Enter a valid email';
                                 }
+
                                 return null;
                               },
                             ),
-
                           ],
                         ),
-
                         _CandidateSection(
                           title: 'Professional information',
                           subtitle: 'Experience and salary expectations',
@@ -395,15 +387,18 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
                                 _experience,
                                 'Experience (years)',
                                 icon: Icons.timeline_rounded,
-                                keyboard: const TextInputType.numberWithOptions(
+                                keyboard:
+                                const TextInputType.numberWithOptions(
                                   decimal: true,
                                 ),
-                                validator: (v) {
-                                  final value = v?.trim() ?? '';
-                                  if (value.isNotEmpty &&
-                                      double.tryParse(value) == null) {
+                                validator: (value) {
+                                  final text = value?.trim() ?? '';
+
+                                  if (text.isNotEmpty &&
+                                      double.tryParse(text) == null) {
                                     return 'Enter valid experience';
                                   }
+
                                   return null;
                                 },
                               ),
@@ -419,22 +414,24 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
                               _salary,
                               'Expected salary / month',
                               icon: Icons.currency_rupee_rounded,
-                              keyboard: const TextInputType.numberWithOptions(
+                              keyboard:
+                              const TextInputType.numberWithOptions(
                                 decimal: true,
                               ),
                               hint: 'Enter expected monthly salary',
-                              validator: (v) {
-                                final value = v?.trim() ?? '';
-                                if (value.isNotEmpty &&
-                                    double.tryParse(value) == null) {
+                              validator: (value) {
+                                final text = value?.trim() ?? '';
+
+                                if (text.isNotEmpty &&
+                                    double.tryParse(text) == null) {
                                   return 'Enter a valid salary';
                                 }
+
                                 return null;
                               },
                             ),
                           ],
                         ),
-
                         _CandidateSection(
                           title: 'Evaluation & pipeline',
                           subtitle: 'Candidate rating and recruitment stage',
@@ -447,13 +444,13 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
                                 icon: Icons.star_outline_rounded,
                                 items: [
                                   for (final e in _ratings.entries)
-                                    DropdownMenuItem(
+                                    DropdownMenuItem<String>(
                                       value: e.key,
                                       child: Text(e.value),
                                     ),
                                 ],
-                                onChanged: (v) {
-                                  setState(() => _rating = v ?? '0');
+                                onChanged: (value) {
+                                  setState(() => _rating = value ?? '0');
                                 },
                               ),
                               _dropdown(
@@ -464,13 +461,13 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
                                 icon: Icons.flag_outlined,
                                 items: [
                                   for (final e in opts(kStages).entries)
-                                    DropdownMenuItem(
+                                    DropdownMenuItem<String>(
                                       value: e.key,
                                       child: Text(e.value),
                                     ),
                                 ],
-                                onChanged: (v) {
-                                  setState(() => _stage = v ?? 'Applied');
+                                onChanged: (value) {
+                                  setState(() => _stage = value ?? 'Applied');
                                 },
                               ),
                             ),
@@ -479,7 +476,8 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
                               _notes,
                               'Notes',
                               icon: Icons.notes_rounded,
-                              hint: 'Add remarks or interview observations...',
+                              hint:
+                              'Add remarks or interview observations...',
                               maxLines: 4,
                             ),
                           ],

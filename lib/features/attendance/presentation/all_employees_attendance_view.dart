@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import 'package:hrms/comman_widget/customer_dropdown.dart';
 import 'package:hrms/core/ui.dart';
+import 'package:hrms/domain/entities/attendance_entity.dart';
 import 'package:hrms/features/attendance/data/attendance_repository.dart';
 
 class AllEmployeesAttendanceView extends StatefulWidget {
@@ -21,7 +22,7 @@ class AllEmployeesAttendanceViewState
 
   DateTime _date = today();
 
-  List<Rec> _employees = [];
+  List<AttendanceEntity> _employees = [];
 
   bool _loading = true;
   bool _exporting = false;
@@ -70,7 +71,7 @@ class AllEmployeesAttendanceViewState
   // STATUS HELPERS
   // ============================================================
 
-  String _status(Rec record) {
+  String _status(AttendanceEntity record) {
     final value = record.s('status');
     return value.isEmpty ? 'Absent' : value;
   }
@@ -148,7 +149,7 @@ class AllEmployeesAttendanceViewState
   // FILTERING
   // ============================================================
 
-  List<Rec> get _filteredEmployees {
+  List<AttendanceEntity> get _filteredEmployees {
     return _employees.where((record) {
       final status = _status(record);
 
@@ -220,7 +221,7 @@ class AllEmployeesAttendanceViewState
   // STATUS UPDATE
   // ============================================================
 
-  Future<void> _updateStatus(Rec record, String newStatus) async {
+  Future<void> _updateStatus(AttendanceEntity record, String newStatus) async {
     final empId = record.i('emp_id') ?? record.i('employee_id');
     if (empId == null || _updatingEmployees.contains(empId)) return;
 
@@ -290,7 +291,7 @@ class AllEmployeesAttendanceViewState
   // EDIT ATTENDANCE
   // ============================================================
 
-  Future<void> _showModifyAttendanceDialog(Rec record) async {
+  Future<void> _showModifyAttendanceDialog(AttendanceEntity record) async {
     final empId = record.i('emp_id') ?? record.i('employee_id');
     if (empId == null) return;
 
@@ -887,7 +888,7 @@ class AllEmployeesAttendanceViewState
   // EMPLOYEE ROW
   // ============================================================
 
-  Widget _employeeRow(Rec record) {
+  Widget _employeeRow(AttendanceEntity record) {
     final cs = Theme.of(context).colorScheme;
     final name = record.s('name');
     final department = record.s('department');

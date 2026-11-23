@@ -1,13 +1,14 @@
 import 'package:flutter/foundation.dart';
-import 'package:hrms/core/common.dart';
+import 'package:hrms/domain/entities/employee_entity.dart';
+import 'package:hrms/domain/entities/special_day_entity.dart';
 import '../data/special_days_repository.dart';
 
 class SpecialDaysController extends ChangeNotifier {
   final SpecialDaysRepository _repository = SpecialDaysRepository();
 
   bool isLoading = false;
-  List<Rec> specialDays = [];
-  List<Rec> activeEmployees = [];
+  List<SpecialDayEntity> specialDays = [];
+  List<EmployeeEntity> activeEmployees = [];
   String selectedKind = 'All';
 
   Future<void> loadSpecialDays() async {
@@ -26,7 +27,7 @@ class SpecialDaysController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> saveSpecialDay(Rec data, {int? id}) async {
+  Future<void> saveSpecialDay(SpecialDayEntity data, {int? id}) async {
     await _repository.saveSpecialDay(data, id: id);
     await loadSpecialDays();
   }

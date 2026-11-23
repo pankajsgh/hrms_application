@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:hrms/core/common.dart';
+import 'package:hrms/domain/entities/payroll_entity.dart';
 import '../data/payroll_repository.dart';
 
 class PayrollController extends ChangeNotifier {
@@ -8,7 +9,7 @@ class PayrollController extends ChangeNotifier {
   bool isLoading = false;
   int year = DateTime.now().year;
   int month = DateTime.now().month;
-  List<Rec> payrollRows = [];
+  List<PayrollEntity> payrollRows = [];
 
   Future<void> loadPayroll({int? empId}) async {
     isLoading = true;

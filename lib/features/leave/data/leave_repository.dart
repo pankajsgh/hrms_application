@@ -1,9 +1,11 @@
+import 'package:flutter/widgets.dart';
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/db.dart';
 import 'package:hrms/core/session.dart';
 import 'package:hrms/core/storage_config.dart';
 import 'package:hrms/data/datasources/local_datasource.dart';
 import 'package:hrms/data/repositories/repository_impl.dart';
+import 'package:hrms/domain/entities/leave_entity.dart';
 
 class LeaveRepository {
   bool get _isLocal =>
@@ -39,8 +41,8 @@ class LeaveRepository {
   // LEAVE TYPES
   // ============================================================
 
-  Future<List<Rec>> leaveTypes() {
-    return Repo.queryOrLocal(
+  Future<List<LeaveTypeEntity>> leaveTypes() async {
+    final raw = await Repo.queryOrLocal(
       'leave_types',
       {},
           () => Db.db.query(
@@ -48,15 +50,16 @@ class LeaveRepository {
         orderBy: 'id ASC',
       ),
     );
+    return raw.map((r) => LeaveTypeEntity.fromMap(r)).toList();
   }
 
-  Future<List<Rec>> fetchLeaveTypes() => leaveTypes();
+  Future<List<LeaveTypeEntity>> fetchLeaveTypes() => leaveTypes();
 
   Future<void> saveLeaveType(
-      Rec data, {
+      Map<String, Object?> data, {
         int? id,
       }) async {
-    final name = data.s('name').trim();
+    final name = (data['name'] ?? '').toString().trim();
     final days = _decimal(data['days_per_year']);
 
     if (name.isEmpty) {
@@ -177,7 +180,6 @@ class LeaveRepository {
         return 'A holiday already exists on that date';
       }
     } else {
-      // Check the date against data returned by the API.
       final existing = await holidays(parsed.year);
       if (existing.any((row) => row.s('date') == cleanDate)) {
         return 'A holiday already exists on that date';
@@ -209,8 +211,8 @@ class LeaveRepository {
   // LEAVE BALANCES
   // ============================================================
 
-  Future<List<Rec>> balances(int emp, int year) {
-    return Repo.queryOrLocal(
+  Future<List<LeaveBalanceEntity>> balances(int emp, int year) async {
+    final raw = await Repo.queryOrLocal(
       'balances',
       {
         'employee_id': '$emp',
@@ -248,9 +250,10 @@ class LeaveRepository {
         [emp, '$year', emp, '$year'],
       ),
     );
+    return raw.map((r) => LeaveBalanceEntity.fromMap(r)).toList();
   }
 
-  Future<List<Rec>> fetchBalances(int emp, int year) =>
+  Future<List<LeaveBalanceEntity>> fetchBalances(int emp, int year) =>
       balances(emp, year);
 
   // ============================================================
@@ -304,16 +307,15 @@ class LeaveRepository {
         return 'Please enter leave reason';
       }
 
-      // Verify leave type using the configured data source.
       final types = await fetchLeaveTypes();
       final typeIndex = types.indexWhere(
-            (row) => row.i('id') == typeId,
+            (row) => row.id == typeId,
       );
 
       if (typeIndex < 0) return 'Invalid leave type';
 
       final leaveType = types[typeIndex];
-      final paid = leaveType.i('paid') == 1;
+      final paid = leaveType.paid == 1;
 
       final holidayDates = await holidaySet();
       final days = _workingDays(s, e, holidayDates);
@@ -322,22 +324,21 @@ class LeaveRepository {
         return 'The selected dates have no working days';
       }
 
-      // Check existing leave requests.
       final existingLeaves = await fetchLeaves(mine: true);
 
       for (final leave in existingLeaves) {
-        final status = leave.s('status');
+        final status = leave.status;
 
         if (status != 'Pending' && status != 'Approved') {
           continue;
         }
 
         final oldStart = DateTime.tryParse(
-          leave.s('start_date'),
+          leave.startDate,
         );
 
         final oldEnd = DateTime.tryParse(
-          leave.s('end_date'),
+          leave.endDate,
         );
 
         if (oldStart == null || oldEnd == null) continue;
@@ -349,12 +350,11 @@ class LeaveRepository {
         }
       }
 
-      // Check paid leave balance.
       if (paid) {
         final balanceList = await fetchBalances(emp, s.year);
 
         final balanceIndex = balanceList.indexWhere(
-              (row) => row.i('id') == typeId,
+              (row) => row.id == typeId,
         );
 
         if (balanceIndex < 0) {
@@ -363,20 +363,18 @@ class LeaveRepository {
 
         final balance = balanceList[balanceIndex];
 
-        final total = balance.d('days_per_year');
-        final used = balance.d('used');
-        final pending = balance.d('pending');
+        final total = balance.daysPerYear;
+        final used = balance.used;
+        final pending = balance.pending;
 
         final remaining = total - used - pending;
 
         if (days > remaining) {
           return 'Only ${nf(remaining < 0 ? 0 : remaining)} '
-              'day(s) left for ${leaveType.s('name')}';
+              'day(s) left for ${leaveType.name}';
         }
       }
 
-      // API-only mode expects the backend to enforce its own
-      // employee, overlap and balance validation as well.
       await Repo.saveData(
         'leaves',
         {},
@@ -402,7 +400,8 @@ class LeaveRepository {
   // LEAVE REQUESTS
   // ============================================================
 
-  Future<List<Rec>> leaves({
+
+  Future<List<LeaveEntity>> leaves({
     bool mine = false,
     bool approvals = false,
     bool pendingOnly = false,
@@ -413,7 +412,7 @@ class LeaveRepository {
       'pendingOnly': pendingOnly.toString(),
     };
 
-    return Repo.queryOrLocal(
+    final raw = await Repo.queryOrLocal(
       'leaves',
       queryMap,
           () async {
@@ -447,7 +446,9 @@ class LeaveRepository {
               ...employees.map((row) => _number(row['id'])),
             ];
 
-            where.add('l.employee_id IN ${LocalDatasource.dbIn(ids)}');
+            where.add(
+              'l.employee_id IN ${LocalDatasource.dbIn(ids)}',
+            );
             where.add('l.employee_id != ?');
             args.add(empId);
           } else {
@@ -465,33 +466,48 @@ class LeaveRepository {
 
         return Db.db.rawQuery(
           '''
-          SELECT
-            l.*,
-            e.name AS emp_name,
-            e.code AS emp_code,
-            e.department AS department,
-            t.name AS type_name,
-            t.paid AS paid
-
-          FROM leaves l
-
-          INNER JOIN employees e
-            ON e.id = l.employee_id
-
-          INNER JOIN leave_types t
-            ON t.id = l.type_id
-
-          $whereSql
-
-          ORDER BY l.id DESC
-          ''',
+        SELECT
+          l.*,
+          e.name AS emp_name,
+          e.code AS emp_code,
+          e.department AS department,
+          t.name AS type_name,
+          t.paid AS paid
+        FROM leaves l
+        INNER JOIN employees e
+          ON e.id = l.employee_id
+        INNER JOIN leave_types t
+          ON t.id = l.type_id
+        $whereSql
+        ORDER BY l.id DESC
+        ''',
           args,
         );
       },
     );
+
+    // DEBUG: Check employee information returned by API/local DB.
+    for (final row in raw) {
+      debugPrint(
+        'LEAVE ID: ${row['id']} | '
+            'EMPLOYEE ID: ${row['employee_id']} | '
+            'EMPLOYEE NAME: ${row['emp_name']} | '
+            'EMPLOYEE CODE: ${row['emp_code']} | '
+            'DEPARTMENT: ${row['department']} | '
+            'LEAVE TYPE: ${row['type_name']}',
+      );
+    }
+
+    final result = raw.map((r) => LeaveEntity.fromMap(r)).toList();
+
+    debugPrint('TOTAL LEAVES LOADED: ${result.length}');
+    debugPrint('FIRST EMPLOYEE NAME: ${result.isNotEmpty ? result.first.empName : 'No leaves'}');
+
+    return result;
   }
 
-  Future<List<Rec>> fetchLeaves({
+
+  Future<List<LeaveEntity>> fetchLeaves({
     bool mine = false,
     bool approvals = false,
     bool pendingOnly = false,
@@ -515,14 +531,14 @@ class LeaveRepository {
     final rows = await fetchLeaves(mine: true);
 
     final index = rows.indexWhere(
-          (row) => row.i('id') == id,
+          (row) => row.id == id,
     );
 
     if (index < 0) {
       throw Exception('Leave request not found');
     }
 
-    if (rows[index].s('status') != 'Pending') {
+    if (rows[index].status != 'Pending') {
       throw Exception('Only pending leave requests can be cancelled');
     }
 
@@ -537,10 +553,10 @@ class LeaveRepository {
   // ============================================================
 
   Future<void> decideLeave(
-      Rec leave,
+      LeaveEntity leave,
       bool approve,
       ) async {
-    final id = leave.i('id');
+    final id = leave.id;
 
     if (id == null || id <= 0) {
       throw Exception('Invalid leave request');
@@ -552,7 +568,7 @@ class LeaveRepository {
     );
 
     final index = currentRows.indexWhere(
-          (row) => row.i('id') == id,
+          (row) => row.id == id,
     );
 
     if (index < 0) {
@@ -563,8 +579,8 @@ class LeaveRepository {
 
     final current = currentRows[index];
 
-    final start = DateTime.tryParse(current.s('start_date'));
-    final end = DateTime.tryParse(current.s('end_date'));
+    final start = DateTime.tryParse(current.startDate);
+    final end = DateTime.tryParse(current.endDate);
 
     if (start == null || end == null) {
       throw Exception('Invalid leave dates');
@@ -586,15 +602,14 @@ class LeaveRepository {
 
     final holidays = await holidaySet();
 
-    final employeeId = current.i('employee_id');
-    if (employeeId == null || employeeId <= 0) {
+    final employeeId = current.employeeId;
+    if (employeeId <= 0) {
       throw Exception('Invalid employee on leave request');
     }
 
     final attendanceStatus =
-    current.i('paid') == 1 ? 'Leave' : 'Unpaid Leave';
+    current.paid == 1 ? 'Leave' : 'Unpaid Leave';
 
-    // Create attendance only when a record does not already exist.
     for (
     var date = DateTime(start.year, start.month, start.day);
     !date.isAfter(DateTime(end.year, end.month, end.day));
@@ -616,7 +631,6 @@ class LeaveRepository {
           final checkIn = row['check_in'];
           final checkOut = row['check_out'];
 
-          // Do not overwrite actual attendance punches.
           if (checkIn != null || checkOut != null) {
             continue;
           }
@@ -635,7 +649,7 @@ class LeaveRepository {
           'status': attendanceStatus,
           'check_in': null,
           'check_out': null,
-          'note': current.s('type_name'),
+          'note': current.typeName,
         },
       );
     }

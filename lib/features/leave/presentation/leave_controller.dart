@@ -1,7 +1,7 @@
-
 import 'package:flutter/foundation.dart';
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/session.dart';
+import 'package:hrms/domain/entities/leave_entity.dart';
 
 import '../data/leave_repository.dart';
 
@@ -11,10 +11,10 @@ class LeaveController extends ChangeNotifier {
   bool isLoading = false;
   bool isSubmitting = false;
 
-  List<Rec> balances = [];
-  List<Rec> leaves = [];
-  List<Rec> approvalLeaves = [];
-  List<Rec> leaveTypes = [];
+  List<LeaveBalanceEntity> balances = [];
+  List<LeaveEntity> leaves = [];
+  List<LeaveEntity> approvalLeaves = [];
+  List<LeaveTypeEntity> leaveTypes = [];
   List<Rec> holidays = [];
 
   int holidayYear = DateTime.now().year;
@@ -32,7 +32,6 @@ class LeaveController extends ChangeNotifier {
   // ============================================================
 
   Future<bool> loadLeaveData(int? empId, int year) async {
-    // Avoid running multiple identical loads simultaneously.
     if (_loadFuture != null) {
       return _loadFuture!;
     }
@@ -97,7 +96,6 @@ class LeaveController extends ChangeNotifier {
   Future<bool> _refresh() async {
     final empId = Session.empId;
 
-    // Wait for an existing load to finish before refreshing.
     final currentLoad = _loadFuture;
     if (currentLoad != null) {
       await currentLoad;
@@ -232,7 +230,7 @@ class LeaveController extends ChangeNotifier {
   // ============================================================
 
   Future<bool> decideLeave(
-      Rec leave,
+      LeaveEntity leave,
       bool approve,
       int? empId,
       ) async {
@@ -251,7 +249,7 @@ class LeaveController extends ChangeNotifier {
   // ============================================================
 
   Future<bool> saveLeaveType(
-      Rec data, {
+      Map<String, Object?> data, {
         int? id,
       }) async {
     try {

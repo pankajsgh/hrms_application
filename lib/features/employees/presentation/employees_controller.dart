@@ -1,13 +1,11 @@
-
 import 'package:flutter/foundation.dart';
-
-import 'package:hrms/core/common.dart';
+import 'package:hrms/domain/entities/employee_entity.dart';
 import '../data/employees_repository.dart';
 
 class EmployeesController extends ChangeNotifier {
   final EmployeesRepository _repository = EmployeesRepository();
 
-  List<Rec> rows = [];
+  List<EmployeeEntity> rows = [];
 
   String searchQuery = '';
 
@@ -46,20 +44,6 @@ class EmployeesController extends ChangeNotifier {
       debugPrintStack(stackTrace: stackTrace);
     });
   }
-
-  // Future<int> saveEmployee(
-  //     Rec data, {
-  //       int? id,
-  //     }) async {
-  //   final resultId = await _repository.saveEmployee(
-  //     data,
-  //     id: id,
-  //   );
-  //
-  //   await loadEmployees();
-  //
-  //   return resultId;
-  // }
 
   @override
   void dispose() {

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:hrms/core/common.dart';
+import 'package:hrms/domain/entities/employee_entity.dart';
+import 'package:hrms/domain/entities/recruitment_entity.dart';
 import '../../employees/data/employees_repository.dart';
 import '../data/recruitment_repository.dart';
 
@@ -8,10 +9,10 @@ class RecruitmentController extends ChangeNotifier {
 
   bool isLoading = false;
   int currentTab = 0; // 0 jobs, 1 pipeline, 2 interviews
-  List<Rec> jobs = [];
-  List<Rec> candidates = [];
-  List<Rec> interviews = [];
-  List<Rec> employees = [];
+  List<JobEntity> jobs = [];
+  List<CandidateEntity> candidates = [];
+  List<InterviewEntity> interviews = [];
+  List<EmployeeEntity> employees = [];
   Map<String, int> stats = {};
   String jobFilter = 'All';
   int? pipeJob;
@@ -24,7 +25,7 @@ class RecruitmentController extends ChangeNotifier {
     notifyListeners();
 
     jobs = await _repository.fetchJobs();
-    if (pipeJob != null && !jobs.any((j) => j['id'] == pipeJob)) {
+    if (pipeJob != null && !jobs.any((j) => j.id == pipeJob)) {
       pipeJob = null;
     }
     candidates = await _repository.fetchCandidates(jobId: pipeJob, q: searchQuery);
@@ -66,12 +67,12 @@ class RecruitmentController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> createJob(Rec data) async {
+  Future<void> createJob(JobEntity data) async {
     await _repository.createJob(data);
     await loadRecruitment();
   }
 
-  Future<void> updateJob(int id, Rec data, {String? currentApproval}) async {
+  Future<void> updateJob(int id, JobEntity data, {String? currentApproval}) async {
     await _repository.updateJob(id, data, currentApproval: currentApproval);
     await loadRecruitment();
   }
@@ -86,7 +87,7 @@ class RecruitmentController extends ChangeNotifier {
     await loadRecruitment();
   }
 
-  Future<void> saveCandidate(Rec data, {int? id}) async {
+  Future<void> saveCandidate(CandidateEntity data, {int? id}) async {
     await _repository.saveCandidate(data, id: id);
     await loadRecruitment();
   }
@@ -111,7 +112,7 @@ class RecruitmentController extends ChangeNotifier {
     await loadRecruitment();
   }
 
-  Future<void> saveInterview(Rec data, {int? id}) async {
+  Future<void> saveInterview(InterviewEntity data, {int? id}) async {
     await _repository.saveInterview(data, id: id);
     await loadRecruitment();
   }

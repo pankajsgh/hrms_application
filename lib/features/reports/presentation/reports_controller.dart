@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/month_calulator.dart';
+import 'package:hrms/domain/entities/attendance_entity.dart';
+import 'package:hrms/domain/entities/employee_entity.dart';
+import 'package:hrms/domain/entities/leave_entity.dart';
 import '../data/reports_repository.dart';
 
 class ReportsController extends ChangeNotifier {
@@ -13,10 +16,10 @@ class ReportsController extends ChangeNotifier {
   int month = DateTime.now().month;
   String searchQuery = '';
 
-  List<MapEntry<Rec, MonthCalc>> summaryRows = [];
-  List<Rec> detailRows = [];
-  List<Rec> leaveRows = [];
-  List<Rec> employeeRows = [];
+  List<MapEntry<EmployeeEntity, MonthCalc>> summaryRows = [];
+  List<AttendanceEntity> detailRows = [];
+  List<LeaveEntity> leaveRows = [];
+  List<EmployeeEntity> employeeRows = [];
 
   Future<void> loadReports() async {
     isLoading = true;
@@ -36,10 +39,10 @@ class ReportsController extends ChangeNotifier {
         empFuture,
       ]);
 
-      summaryRows = results[0] as List<MapEntry<Rec, MonthCalc>>;
-      detailRows = results[1] as List<Rec>;
-      leaveRows = results[2] as List<Rec>;
-      employeeRows = results[3] as List<Rec>;
+      summaryRows = results[0] as List<MapEntry<EmployeeEntity, MonthCalc>>;
+      detailRows = results[1] as List<AttendanceEntity>;
+      leaveRows = results[2] as List<LeaveEntity>;
+      employeeRows = results[3] as List<EmployeeEntity>;
     } catch (e, stackTrace) {
       error = 'Unable to load report data';
       debugPrint('loadReports error: $e');
@@ -90,25 +93,25 @@ class ReportsController extends ChangeNotifier {
 
   // --- Filtered Data Getters ---
 
-  List<MapEntry<Rec, MonthCalc>> get filteredSummaryRows {
+  List<MapEntry<EmployeeEntity, MonthCalc>> get filteredSummaryRows {
     if (searchQuery.isEmpty) return summaryRows;
     final q = searchQuery.toLowerCase();
     return summaryRows.where((e) {
-      final name = e.key.s('name').toLowerCase();
-      final code = e.key.s('code').toLowerCase();
-      final dept = e.key.s('department').toLowerCase();
+      final name = e.key.name.toLowerCase();
+      final code = e.key.code.toLowerCase();
+      final dept = (e.key.department ?? '').toLowerCase();
       return name.contains(q) || code.contains(q) || dept.contains(q);
     }).toList();
   }
 
-  List<Rec> get filteredDetailRows {
+  List<AttendanceEntity> get filteredDetailRows {
     if (searchQuery.isEmpty) return detailRows;
     final q = searchQuery.toLowerCase();
     return detailRows.where((r) {
-      final name = r.s('name').toLowerCase();
-      final code = r.s('code').toLowerCase();
-      final dept = r.s('department').toLowerCase();
-      final status = r.s('status').toLowerCase();
+      final name = (r.empName ?? '').toLowerCase();
+      final code = (r.code ?? '').toLowerCase();
+      final dept = (r.department ?? '').toLowerCase();
+      final status = r.status.toLowerCase();
       return name.contains(q) ||
           code.contains(q) ||
           dept.contains(q) ||
@@ -116,14 +119,14 @@ class ReportsController extends ChangeNotifier {
     }).toList();
   }
 
-  List<Rec> get filteredLeaveRows {
+  List<LeaveEntity> get filteredLeaveRows {
     if (searchQuery.isEmpty) return leaveRows;
     final q = searchQuery.toLowerCase();
     return leaveRows.where((l) {
-      final empName = l.s('emp_name').toLowerCase();
-      final typeName = l.s('type_name').toLowerCase();
-      final reason = l.s('reason').toLowerCase();
-      final status = l.s('status').toLowerCase();
+      final empName = (l.empName ?? '').toLowerCase();
+      final typeName = (l.typeName ?? '').toLowerCase();
+      final reason = l.reason.toLowerCase();
+      final status = l.status.toLowerCase();
       return empName.contains(q) ||
           typeName.contains(q) ||
           reason.contains(q) ||
@@ -131,15 +134,15 @@ class ReportsController extends ChangeNotifier {
     }).toList();
   }
 
-  List<Rec> get filteredEmployeeRows {
+  List<EmployeeEntity> get filteredEmployeeRows {
     if (searchQuery.isEmpty) return employeeRows;
     final q = searchQuery.toLowerCase();
     return employeeRows.where((e) {
-      final name = e.s('name').toLowerCase();
-      final code = e.s('code').toLowerCase();
-      final dept = e.s('department').toLowerCase();
-      final email = e.s('email').toLowerCase();
-      final desig = e.s('designation').toLowerCase();
+      final name = e.name.toLowerCase();
+      final code = e.code.toLowerCase();
+      final dept = (e.department ?? '').toLowerCase();
+      final email = (e.email ?? '').toLowerCase();
+      final desig = (e.designation ?? '').toLowerCase();
       return name.contains(q) ||
           code.contains(q) ||
           dept.contains(q) ||
@@ -149,17 +152,17 @@ class ReportsController extends ChangeNotifier {
   }
 
   // Backward compatibility helpers
-  Future<List<Rec>> fetchAttendanceDetail() async {
+  Future<List<AttendanceEntity>> fetchAttendanceDetail() async {
     if (detailRows.isNotEmpty) return detailRows;
     return await _repository.fetchAttendanceDetail(year, month);
   }
 
-  Future<List<Rec>> fetchEmployees() async {
+  Future<List<EmployeeEntity>> fetchEmployees() async {
     if (employeeRows.isNotEmpty) return employeeRows;
     return await _repository.fetchEmployees();
   }
 
-  Future<List<Rec>> fetchLeaves() async {
+  Future<List<LeaveEntity>> fetchLeaves() async {
     if (leaveRows.isNotEmpty) return leaveRows;
     return await _repository.fetchLeaves();
   }

@@ -76,4 +76,19 @@ class EmployeeEntity {
         pfPercent: (map['pf_percent'] as num?)?.toDouble() ?? 12,
         otherDeduction: (map['other_deduction'] as num?)?.toDouble() ?? 0,
       );
+
+  Object? operator [](String key) => toMap()[key];
+  String s(String key, [String def = '']) => toMap()[key]?.toString() ?? def;
+  int? i(String key) {
+    final val = toMap()[key];
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    return int.tryParse(val?.toString() ?? '');
+  }
+  double d(String key, [double def = 0.0]) {
+    final val = toMap()[key];
+    if (val is double) return val;
+    if (val is num) return val.toDouble();
+    return double.tryParse(val?.toString() ?? '') ?? def;
+  }
 }

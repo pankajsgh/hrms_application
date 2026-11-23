@@ -6,22 +6,27 @@ import 'package:hrms/core/db.dart';
 import 'package:hrms/core/session.dart';
 import 'package:hrms/data/datasources/local_datasource.dart';
 import 'package:hrms/data/repositories/repository_impl.dart';
+import 'package:hrms/domain/entities/recruitment_entity.dart';
 
 class RecruitmentRepository {
-  Future<List<Rec>> jobs() => Repo.queryOrLocal('jobs', {}, () => Db.db.rawQuery(
-      'SELECT j.*, '
-      '(SELECT COUNT(*) FROM candidates c WHERE c.job_id = j.id) AS cands, '
-      '(SELECT name FROM employees x WHERE x.id = j.created_by) AS creator_name '
-      'FROM jobs j '
-      "ORDER BY CASE j.approval WHEN 'Pending' THEN 0 ELSE 1 END, j.id DESC"));
+  Future<List<JobEntity>> jobs() async {
+    final raw = await Repo.queryOrLocal('jobs', {}, () => Db.db.rawQuery(
+        'SELECT j.*, '
+        '(SELECT COUNT(*) FROM candidates c WHERE c.job_id = j.id) AS cands, '
+        '(SELECT name FROM employees x WHERE x.id = j.created_by) AS creator_name '
+        'FROM jobs j '
+        "ORDER BY CASE j.approval WHEN 'Pending' THEN 0 ELSE 1 END, j.id DESC"));
+    return raw.map((r) => JobEntity.fromMap(r)).toList();
+  }
 
-  Future<List<Rec>> fetchJobs() => jobs();
+  Future<List<JobEntity>> fetchJobs() => jobs();
 
-  Future<int> createJob(Rec data) {
+  Future<int> createJob(Object data) {
+    final map = data is JobEntity ? data.toMap() : (data as Map<String, Object?>);
     final admin = Session.isAdmin;
     final now = ymd(DateTime.now());
     return Repo.saveData('jobs', {}, {
-      ...data,
+      ...map,
       'created_by': Session.empId,
       'created_on': now,
       'approval': admin ? 'Approved' : 'Pending',
@@ -30,8 +35,9 @@ class RecruitmentRepository {
     });
   }
 
-  Future<void> updateJob(int id, Rec data, {String? currentApproval}) async {
-    final v = <String, Object?>{...data};
+  Future<void> updateJob(int id, Object data, {String? currentApproval}) async {
+    final map = data is JobEntity ? data.toMap() : (data as Map<String, Object?>);
+    final v = <String, Object?>{...map};
     if (currentApproval == 'Rejected' && !Session.isAdmin) {
       v['approval'] = 'Pending';
       v['reject_reason'] = null;
@@ -63,12 +69,12 @@ class RecruitmentRepository {
     await Repo.deleteData('jobs', {'id': '$id'});
   }
 
-  Future<List<Rec>> candidates({int? jobId, String q = ''}) {
+  Future<List<CandidateEntity>> candidates({int? jobId, String q = ''}) async {
     final queryMap = <String, String>{
       if (jobId != null) 'job_id': '$jobId',
       'q': q,
     };
-    return Repo.queryOrLocal('candidates', queryMap, () async {
+    final raw = await Repo.queryOrLocal('candidates', queryMap, () async {
       final w = <String>[];
       final a = <Object?>[ymd(DateTime.now())];
       if (jobId != null) {
@@ -88,13 +94,15 @@ class RecruitmentRepository {
           'ORDER BY c.id DESC',
           a);
     });
+    return raw.map((r) => CandidateEntity.fromMap(r)).toList();
   }
 
-  Future<List<Rec>> fetchCandidates({int? jobId, String q = ''}) =>
+  Future<List<CandidateEntity>> fetchCandidates({int? jobId, String q = ''}) =>
       candidates(jobId: jobId, q: q);
 
-  Future<void> saveCandidate(Rec data, {int? id}) async {
-    await Repo.saveData('candidates', id != null ? {'id': '$id'} : {}, data);
+  Future<void> saveCandidate(Object data, {int? id}) async {
+    final map = data is CandidateEntity ? data.toMap() : (data as Map<String, Object?>);
+    await Repo.saveData('candidates', id != null ? {'id': '$id'} : {}, map);
   }
 
   Future<void> setStage(int id, String stage) => Db.db.update(
@@ -128,33 +136,39 @@ class RecruitmentRepository {
           where: 'id = ?',
           whereArgs: [candidateId]);
 
-  Future<List<Rec>> interviews() => Repo.queryOrLocal('interviews', {}, () => Db.db.rawQuery(
-      'SELECT i.*, c.name AS cand_name, j.title AS job_title, '
-      '(SELECT name FROM employees x WHERE x.id = i.interviewer_id) AS interviewer_name '
-      'FROM interviews i JOIN candidates c ON c.id = i.candidate_id '
-      'JOIN jobs j ON j.id = c.job_id ORDER BY i.scheduled_at DESC'));
+  Future<List<InterviewEntity>> interviews() async {
+    final raw = await Repo.queryOrLocal('interviews', {}, () => Db.db.rawQuery(
+        'SELECT i.*, c.name AS cand_name, j.title AS job_title, '
+        '(SELECT name FROM employees x WHERE x.id = i.interviewer_id) AS interviewer_name '
+        'FROM interviews i JOIN candidates c ON c.id = i.candidate_id '
+        'JOIN jobs j ON j.id = c.job_id ORDER BY i.scheduled_at DESC'));
+    return raw.map((r) => InterviewEntity.fromMap(r)).toList();
+  }
 
-  Future<List<Rec>> fetchInterviews() => interviews();
+  Future<List<InterviewEntity>> fetchInterviews() => interviews();
 
-  Future<List<Rec>> candidateInterviews(int candidateId) =>
-      Repo.queryOrLocal('candidate_interviews', {'candidate_id': '$candidateId'}, () => Db.db.rawQuery(
-          'SELECT i.*, (SELECT name FROM employees x WHERE x.id = i.interviewer_id) '
-          'AS interviewer_name FROM interviews i WHERE i.candidate_id = ? '
-          'ORDER BY i.scheduled_at DESC',
-          [candidateId]));
+  Future<List<InterviewEntity>> candidateInterviews(int candidateId) async {
+    final raw = await Repo.queryOrLocal('candidate_interviews', {'candidate_id': '$candidateId'}, () => Db.db.rawQuery(
+        'SELECT i.*, (SELECT name FROM employees x WHERE x.id = i.interviewer_id) '
+        'AS interviewer_name FROM interviews i WHERE i.candidate_id = ? '
+        'ORDER BY i.scheduled_at DESC',
+        [candidateId]));
+    return raw.map((r) => InterviewEntity.fromMap(r)).toList();
+  }
 
-  Future<List<Rec>> fetchCandidateInterviews(int candidateId) =>
+  Future<List<InterviewEntity>> fetchCandidateInterviews(int candidateId) =>
       candidateInterviews(candidateId);
 
-  Future<void> saveInterview(Rec data, {int? id}) async {
+  Future<void> saveInterview(Object data, {int? id}) async {
+    final map = data is InterviewEntity ? data.toMap() : (data as Map<String, Object?>);
     if (id == null) {
-      await Repo.saveData('interviews', {}, data);
+      await Repo.saveData('interviews', {}, map);
       await Db.db.rawUpdate(
           "UPDATE candidates SET stage = 'Interview', stage_changed_on = ? "
           "WHERE id = ? AND stage IN ('Applied','Screening')",
-          [ymd(DateTime.now()), data['candidate_id']]);
+          [ymd(DateTime.now()), map['candidate_id']]);
     } else {
-      await Repo.saveData('interviews', {'id': '$id'}, data);
+      await Repo.saveData('interviews', {'id': '$id'}, map);
     }
   }
 

@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:hrms/data/datasources/local_datasource.dart';
 import 'package:hrms/data/repositories/repository_impl.dart';
+import 'package:hrms/domain/entities/document_entity.dart';
+import 'package:hrms/domain/entities/employee_entity.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:hrms/core/common.dart';
@@ -8,8 +10,8 @@ import 'package:hrms/core/db.dart';
 import '../../employees/data/employees_repository.dart';
 
 class DocumentsRepository {
-  Future<List<Rec>> documents() async {
-    return Repo.queryOrLocal('documents', {}, () async {
+  Future<List<DocumentEntity>> documents() async {
+    final raw = await Repo.queryOrLocal('documents', {}, () async {
       final ids = await scopeIds();
       return Db.db.rawQuery(
           'SELECT d.*, e.name AS emp_name FROM documents d '
@@ -17,9 +19,10 @@ class DocumentsRepository {
           '${ids == null ? '' : 'WHERE d.employee_id IN ${LocalDatasource.dbIn(ids)}'} '
           'ORDER BY d.id DESC');
     });
+    return raw.map((r) => DocumentEntity.fromMap(r)).toList();
   }
 
-  Future<List<Rec>> fetchDocuments() => documents();
+  Future<List<DocumentEntity>> fetchDocuments() => documents();
 
   Future<void> addDocument(
       int emp, String title, String category, String source) async {
@@ -38,13 +41,15 @@ class DocumentsRepository {
     });
   }
 
-  Future<void> deleteDocument(Rec doc) async {
-    final f = File(doc.s('file_path'));
+  Future<void> deleteDocument(DocumentEntity doc) async {
+    final f = File(doc.filePath);
     if (await f.exists()) await f.delete();
-    await Repo.deleteData('documents', {'id': '${doc['id']}'});
+    if (doc.id != null) {
+      await Repo.deleteData('documents', {'id': '${doc.id}'});
+    }
   }
 
-  Future<List<Rec>> scopeEmployees() => EmployeesRepository().scopeEmployees();
+  Future<List<EmployeeEntity>> scopeEmployees() => EmployeesRepository().scopeEmployees();
 
-  Future<List<Rec>> fetchScopeEmployees() => scopeEmployees();
+  Future<List<EmployeeEntity>> fetchScopeEmployees() => scopeEmployees();
 }

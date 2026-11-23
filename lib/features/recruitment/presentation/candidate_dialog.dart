@@ -1,8 +1,7 @@
+import 'package:hrms/core/ui.dart';
+import 'package:hrms/domain/entities/recruitment_entity.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-import 'package:hrms/core/common.dart';
-import 'package:hrms/core/ui.dart';
 
 /// Action chosen by the user in [CandidateDetailsDialog].
 enum CandidateAction { edit, openResume, attachResume, scheduleInterview, convert }
@@ -16,13 +15,13 @@ class CandidateDetailsDialog extends StatelessWidget {
     required this.interviews,
   });
 
-  final Rec candidate;
-  final List<Rec> interviews;
+  final CandidateEntity candidate;
+  final List<InterviewEntity> interviews;
 
   static Future<CandidateAction?> show(
       BuildContext context, {
-        required Rec candidate,
-        required List<Rec> interviews,
+        required CandidateEntity candidate,
+        required List<InterviewEntity> interviews,
       }) {
     return showDialog<CandidateAction>(
       context: context,
@@ -216,7 +215,7 @@ class _Row extends StatelessWidget {
 class _InterviewTile extends StatelessWidget {
   const _InterviewTile(this.interview, this.fmt);
 
-  final Rec interview;
+  final InterviewEntity interview;
   final DateFormat fmt;
 
   @override

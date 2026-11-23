@@ -6,10 +6,11 @@ import 'package:hrms/features/employees/data/employees_repository.dart';
 
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/ui.dart';
+import 'package:hrms/domain/entities/employee_entity.dart';
 
 Future<int?> showEmployeeForm(
     BuildContext context, {
-      Rec? existing,
+      EmployeeEntity? existing,
     }) async {
   final isNew = existing == null;
 
@@ -112,7 +113,7 @@ Future<int?> showEmployeeForm(
     departmentOptions.insert(0, currentDepartment);
   }
 
-  List<Rec> managerOptions;
+  List<EmployeeEntity> managerOptions;
 
   try {
     final emps = await EmployeesRepository().employees(activeOnly: true);
