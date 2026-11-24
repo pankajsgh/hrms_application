@@ -111,17 +111,52 @@ class _MyLeaveTab extends StatelessWidget {
         padding: const EdgeInsets.all(10),
         children: [
           _WelcomeCard(
-            title: 'My Leave',
-            subtitle: 'Manage your time off and leave requests',
+            title: 'My Requests',
+            subtitle: 'Apply for leaves, work from home, or field work',
             icon: Icons.event_available_rounded,
-            trailing: FilledButton.icon(
-              onPressed: controller.isSubmitting
-                  ? null
-                  : () => _apply(context),
-              icon: const Icon(Icons.add_rounded, size: 17),
-              label: Text(
-                controller.isSubmitting ? 'Please wait' : 'Apply Leave',
-              ),
+            trailing: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: controller.isSubmitting
+                      ? null
+                      : () => _apply(context, defaultTypeName: 'home'),
+                  icon: const Icon(Icons.home_work_outlined, size: 16),
+                  label: const Text('Apply WFH'),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: controller.isSubmitting
+                      ? null
+                      : () => _apply(context, defaultTypeName: 'field'),
+                  icon: const Icon(Icons.near_me_outlined, size: 16),
+                  label: const Text('Work Outside'),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                FilledButton.icon(
+                  onPressed: controller.isSubmitting
+                      ? null
+                      : () => _apply(context),
+                  icon: const Icon(Icons.add_rounded, size: 16),
+                  label: Text(
+                    controller.isSubmitting ? 'Please wait' : 'Apply Leave',
+                  ),
+                  style: FilledButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
@@ -245,7 +280,7 @@ class _MyLeaveTab extends StatelessWidget {
     );
   }
 
-  Future<void> _apply(BuildContext context) async {
+  Future<void> _apply(BuildContext context, {String? defaultTypeName}) async {
     final empId = Session.empId;
 
     if (empId == null) {
@@ -264,11 +299,55 @@ class _MyLeaveTab extends StatelessWidget {
       return;
     }
 
-    final reasonController = TextEditingController();
+    // Deduplicate leave types by lowercased name
+    final seenNames = <String>{};
+    final uniqueTypes = <LeaveTypeEntity>[];
+    for (final t in types) {
+      final nameKey = t.name.trim().toLowerCase();
+      if (seenNames.add(nameKey)) {
+        uniqueTypes.add(t);
+      }
+    }
 
-    String? selectedType;
+    List<LeaveTypeEntity> availableTypes;
+    bool dropdownEnabled = true;
+
+    if (defaultTypeName == 'home') {
+      availableTypes = uniqueTypes
+          .where((t) =>
+              t.name.toLowerCase().contains('home') ||
+              t.name.toLowerCase().contains('wfh'))
+          .toList();
+      dropdownEnabled = false;
+    } else if (defaultTypeName == 'field') {
+      availableTypes = uniqueTypes
+          .where((t) =>
+              t.name.toLowerCase().contains('field') ||
+              t.name.toLowerCase().contains('outside'))
+          .toList();
+      dropdownEnabled = false;
+    } else {
+      availableTypes = uniqueTypes
+          .where((t) =>
+              !t.name.toLowerCase().contains('home') &&
+              !t.name.toLowerCase().contains('wfh') &&
+              !t.name.toLowerCase().contains('field') &&
+              !t.name.toLowerCase().contains('outside'))
+          .toList();
+      dropdownEnabled = true;
+    }
+
+    if (availableTypes.isEmpty) {
+      availableTypes = uniqueTypes;
+    }
+
+    final reasonController = TextEditingController();
+    String? selectedType = availableTypes.first.id?.toString();
+
     DateTime? fromDate;
     DateTime? toDate;
+    bool isHalfDay = false;
+    String halfDayType = 'First Half';
 
     try {
       final result = await showDialog<Map<String, dynamic>>(
@@ -304,7 +383,23 @@ class _MyLeaveTab extends StatelessWidget {
                 });
               }
 
+              final dialogTitle = defaultTypeName == 'home'
+                  ? 'Apply Work From Home'
+                  : defaultTypeName == 'field'
+                      ? 'Apply Work Outside (Field)'
+                      : 'Apply Leave Request';
+              final dialogIcon = defaultTypeName == 'home'
+                  ? Icons.home_work_outlined
+                  : defaultTypeName == 'field'
+                      ? Icons.near_me_outlined
+                      : Icons.beach_access_rounded;
+
+              final fieldLabel = defaultTypeName != null
+                  ? 'Request Type'
+                  : 'Leave Type';
+
               return AlertDialog(
+                backgroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18),
                 ),
@@ -317,17 +412,17 @@ class _MyLeaveTab extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
-                        Icons.beach_access_rounded,
+                        dialogIcon,
                         color: cs.primary,
                         size: 20,
                       ),
                     ),
                     const SizedBox(width: 10),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Apply for Leave',
-                        style: TextStyle(
-                          fontSize: 17,
+                        dialogTitle,
+                        style: const TextStyle(
+                          fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -341,34 +436,37 @@ class _MyLeaveTab extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const _FieldLabel('Leave Type'),
+                        // _FieldLabel(fieldLabel),
                         const SizedBox(height: 7),
                         CustomDropdown<String>(
-                          label: 'Leave Type',
+                          label: fieldLabel,
                           value: selectedType,
+                          enabled: dropdownEnabled,
                           icon: Icons.category_outlined,
-                          hint: 'Select leave type',
+                          hint: 'Select type',
                           searchText: (id) {
-                            final index = types.indexWhere(
-                                  (e) => e.i('id').toString() == id,
+                            final index = availableTypes.indexWhere(
+                              (e) => e.id.toString() == id,
                             );
                             return index == -1
                                 ? id
-                                : types[index].s('name');
+                                : availableTypes[index].name;
                           },
                           items: [
-                            for (final type in types)
-                              if (type.i('id') != null)
+                            for (final type in availableTypes)
+                              if (type.id != null)
                                 DropdownMenuItem<String>(
-                                  value: type.i('id').toString(),
+                                  value: type.id.toString(),
                                   child: Text(
-                                    type.s('name'),
+                                    type.name,
                                     style: const TextStyle(fontSize: 13),
                                   ),
                                 ),
                           ],
                           onChanged: (value) {
-                            setDialogState(() => selectedType = value);
+                            if (dropdownEnabled) {
+                              setDialogState(() => selectedType = value);
+                            }
                           },
                         ),
                         const SizedBox(height: 18),
@@ -425,6 +523,66 @@ class _MyLeaveTab extends StatelessWidget {
                               ],
                             ),
                           ),
+                          if (fromDate!.year == toDate!.year &&
+                              fromDate!.month == toDate!.month &&
+                              fromDate!.day == toDate!.day) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: Column(
+                                children: [
+                                  CheckboxListTile(
+                                    title: const Text('Half Day Request',
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600)),
+                                    value: isHalfDay,
+                                    onChanged: (val) {
+                                      setDialogState(() {
+                                        isHalfDay = val ?? false;
+                                      });
+                                    },
+                                    dense: true,
+                                    controlAffinity:
+                                    ListTileControlAffinity.leading,
+                                  ),
+                                  if (isHalfDay) ...[
+                                    const Divider(height: 1),
+                                    RadioListTile<String>(
+                                      title: const Text('First Half',
+                                          style: TextStyle(fontSize: 12.5)),
+                                      value: 'First Half',
+                                      groupValue: halfDayType,
+                                      dense: true,
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          setDialogState(
+                                                  () => halfDayType = val);
+                                        }
+                                      },
+                                    ),
+                                    RadioListTile<String>(
+                                      title: const Text('Second Half',
+                                          style: TextStyle(fontSize: 12.5)),
+                                      value: 'Second Half',
+                                      groupValue: halfDayType,
+                                      dense: true,
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          setDialogState(
+                                                  () => halfDayType = val);
+                                        }
+                                      },
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                         const SizedBox(height: 18),
                         const _FieldLabel('Reason for Leave'),
@@ -497,6 +655,8 @@ class _MyLeaveTab extends StatelessWidget {
                         'from': ymd(fromDate!),
                         'to': ymd(toDate!),
                         'reason': reasonController.text.trim(),
+                        'isHalfDay': isHalfDay,
+                        'halfDayType': halfDayType,
                       });
                     },
                     icon: const Icon(Icons.send_rounded, size: 16),
@@ -517,6 +677,8 @@ class _MyLeaveTab extends StatelessWidget {
         DateTime.parse(result['from'] as String),
         DateTime.parse(result['to'] as String),
         result['reason'] as String,
+        isHalfDay: result['isHalfDay'] == true,
+        halfDayType: result['halfDayType'] as String?,
       );
 
       if (!context.mounted) return;
@@ -1225,6 +1387,24 @@ class _LeaveRequestCard extends StatelessWidget {
       ],
     );
 
+    final leaveTypeLower = leaveType.toLowerCase();
+    final isWFH = leaveTypeLower.contains('home') || leaveTypeLower.contains('wfh');
+    final isField = leaveTypeLower.contains('field') || leaveTypeLower.contains('outside') || leaveTypeLower.contains('duty');
+
+    final categoryIcon = isWFH
+        ? Icons.home_work_outlined
+        : isField
+            ? Icons.near_me_outlined
+            : showEmployee
+                ? Icons.person_outline
+                : Icons.beach_access_outlined;
+
+    final categoryColor = isWFH
+        ? Colors.blue
+        : isField
+            ? Colors.deepPurple
+            : cs.primary;
+
     return Card(
       elevation: 0,
       margin: EdgeInsets.zero,
@@ -1247,14 +1427,12 @@ class _LeaveRequestCard extends StatelessWidget {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: cs.primaryContainer.withValues(alpha: 0.75),
+                    color: categoryColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
-                    showEmployee
-                        ? Icons.person_outline
-                        : Icons.beach_access_outlined,
-                    color: cs.primary,
+                    categoryIcon,
+                    color: categoryColor,
                     size: 19,
                   ),
                 ),
@@ -1630,12 +1808,10 @@ class _WelcomeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isMobile = MediaQuery.of(context).size.width < 800;
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 8,
-      ),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -1650,44 +1826,96 @@ class _WelcomeCard extends StatelessWidget {
           color: cs.primary.withValues(alpha: 0.15),
         ),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 43,
-            height: 43,
-            decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: cs.primary, size: 23),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
+      child: isMobile
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: cs.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(icon, color: cs.primary, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 1,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle,
+                            maxLines: 2,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: cs.onSurfaceVariant,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (trailing != null) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: trailing!,
+                  ),
+                ],
+              ],
+            )
+          : Row(
+              children: [
+                Container(
+                  width: 43,
+                  height: 43,
+                  decoration: BoxDecoration(
+                    color: cs.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: cs.primary, size: 23),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        maxLines: 2,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant,
+                            ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
+                if (trailing != null) ...[
+                  const SizedBox(width: 8),
+                  trailing!,
+                ],
               ],
             ),
-          ),
-          if (trailing != null) ...[
-            const SizedBox(width: 8),
-            trailing!,
-          ],
-        ],
-      ),
     );
   }
 }

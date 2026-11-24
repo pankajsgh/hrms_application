@@ -253,13 +253,113 @@ class SpecialDaysFeaturePageState extends State<SpecialDaysFeaturePage> {
                   );
                 }
 
+                if (narrow) {
+                  return ListView.separated(
+                    itemCount: list.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final s = list[index];
+                      return Material(
+                        color: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primaryContainer
+                                      .withValues(alpha: 0.6),
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                                child: Icon(
+                                  specialIcon(s.s('kind')),
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      s.s('emp_name'),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${s.s('kind')} • ${fmtDate(s['date'])}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                    if (s.s('title').isNotEmpty) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        s.s('title'),
+                                        style: const TextStyle(fontSize: 11),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Edit',
+                                icon: const Icon(
+                                  Icons.edit_outlined,
+                                  size: 18,
+                                ),
+                                onPressed: () => _edit(s),
+                              ),
+                              IconButton(
+                                tooltip: 'Delete',
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  size: 18,
+                                  color: Colors.red,
+                                ),
+                                onPressed: () => _delete(s),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                }
+
                 return TableCard(
                   columns: const [
-                    DataColumn(label: Text('Employee')),
-                    DataColumn(label: Text('Type')),
-                    DataColumn(label: Text('Title')),
-                    DataColumn(label: Text('Date')),
-                    DataColumn(label: Text('Repeats')),
+                    DataColumn(
+                        label: Text('Employee',
+                            style: TextStyle(fontWeight: FontWeight.w700))),
+                    DataColumn(
+                        label: Text('Type',
+                            style: TextStyle(fontWeight: FontWeight.w700))),
+                    DataColumn(
+                        label: Text('Title',
+                            style: TextStyle(fontWeight: FontWeight.w700))),
+                    DataColumn(
+                        label: Text('Date',
+                            style: TextStyle(fontWeight: FontWeight.w700))),
+                    DataColumn(
+                        label: Text('Repeats',
+                            style: TextStyle(fontWeight: FontWeight.w700))),
                     DataColumn(label: Text('')),
                   ],
                   rows: [
@@ -267,7 +367,9 @@ class SpecialDaysFeaturePageState extends State<SpecialDaysFeaturePage> {
                       DataRow(
                         cells: [
                           DataCell(
-                            Text(s.s('emp_name')),
+                            Text(s.s('emp_name'),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
                           ),
                           DataCell(
                             Row(

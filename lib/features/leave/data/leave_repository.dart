@@ -50,7 +50,19 @@ class LeaveRepository {
         orderBy: 'id ASC',
       ),
     );
-    return raw.map((r) => LeaveTypeEntity.fromMap(r)).toList();
+    final types = raw.map((r) => LeaveTypeEntity.fromMap(r)).toList();
+
+    // Auto-ensure WFH and Field Work leave types exist
+    if (!types.any((t) => t.name.toLowerCase().contains('home') || t.name.toLowerCase().contains('wfh'))) {
+      await saveLeaveType({'name': 'Work From Home', 'days_per_year': 365, 'paid': 1});
+      return leaveTypes();
+    }
+    if (!types.any((t) => t.name.toLowerCase().contains('field') || t.name.toLowerCase().contains('outside'))) {
+      await saveLeaveType({'name': 'Work Outside (Field)', 'days_per_year': 365, 'paid': 1});
+      return leaveTypes();
+    }
+
+    return types;
   }
 
   Future<List<LeaveTypeEntity>> fetchLeaveTypes() => leaveTypes();
@@ -290,8 +302,10 @@ class LeaveRepository {
       int typeId,
       DateTime start,
       DateTime end,
-      String reason,
-      ) async {
+      String reason, {
+        bool isHalfDay = false,
+        String? halfDayType,
+      }) async {
     try {
       if (emp <= 0) return 'Invalid employee';
       if (typeId <= 0) return 'Invalid leave type';
@@ -301,6 +315,10 @@ class LeaveRepository {
 
       if (e.isBefore(s)) {
         return 'End date is before start date';
+      }
+
+      if (isHalfDay && !s.isAtSameMomentAs(e)) {
+        return 'Half day can only be applied for a single date';
       }
 
       if (reason.trim().isEmpty) {
@@ -318,11 +336,16 @@ class LeaveRepository {
       final paid = leaveType.paid == 1;
 
       final holidayDates = await holidaySet();
-      final days = _workingDays(s, e, holidayDates);
+      final calculatedDays = _workingDays(s, e, holidayDates);
 
-      if (days <= 0) {
+      if (calculatedDays <= 0) {
         return 'The selected dates have no working days';
       }
+
+      final days = isHalfDay ? 0.5 : calculatedDays;
+      final finalReason = isHalfDay && halfDayType != null
+          ? '[$halfDayType] ${reason.trim()}'
+          : reason.trim();
 
       final existingLeaves = await fetchLeaves(mine: true);
 
@@ -384,7 +407,7 @@ class LeaveRepository {
           'start_date': _date(s),
           'end_date': _date(e),
           'days': days,
-          'reason': reason.trim(),
+          'reason': finalReason,
           'status': 'Pending',
           'applied_on': _date(DateTime.now()),
         },
@@ -607,8 +630,15 @@ class LeaveRepository {
       throw Exception('Invalid employee on leave request');
     }
 
-    final attendanceStatus =
-    current.paid == 1 ? 'Leave' : 'Unpaid Leave';
+    String attendanceStatus;
+    final typeLower = (current.typeName ?? '').toLowerCase();
+    if (typeLower.contains('home') || typeLower.contains('wfh')) {
+      attendanceStatus = 'WFH';
+    } else if (typeLower.contains('field') || typeLower.contains('outside') || typeLower.contains('duty')) {
+      attendanceStatus = 'On Duty';
+    } else {
+      attendanceStatus = current.paid == 1 ? 'Leave' : 'Unpaid Leave';
+    }
 
     for (
     var date = DateTime(start.year, start.month, start.day);

@@ -290,7 +290,7 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
                   style: TextStyle(
                     color: cs.primary,
                     fontSize: 14,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),

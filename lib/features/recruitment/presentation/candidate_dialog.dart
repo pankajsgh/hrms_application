@@ -116,6 +116,46 @@ class CandidateDetailsDialog extends StatelessWidget {
                         : ''),
                 _Row(Icons.event_outlined, 'Applied on', fmtDate(c['applied_on'])),
                 _Row(Icons.notes_outlined, 'Notes', c.s('notes')),
+                const Divider(height: 24),
+                Row(
+                  children: [
+                    Icon(Icons.description_outlined, size: 17, color: cs.outline),
+                    const SizedBox(width: 10),
+                    SizedBox(
+                      width: 110,
+                      child: Text('Resume',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: cs.onSurfaceVariant)),
+                    ),
+                    Expanded(
+                      child: Text(
+                        hasResume ? 'Attached' : 'No resume attached',
+                        style: TextStyle(
+                          color: hasResume
+                              ? Colors.green.shade700
+                              : Colors.orange.shade800,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          Navigator.pop(context, CandidateAction.attachResume),
+                      icon: Icon(hasResume ? Icons.upload_file : Icons.add,
+                          size: 15),
+                      label: Text(hasResume ? 'Replace' : 'Upload',
+                          style: const TextStyle(fontSize: 12)),
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 0),
+                      ),
+                    ),
+                  ],
+                ),
                 if (converted)
                   _Row(Icons.verified_outlined, 'Employee',
                       'Already converted to an employee'),
@@ -155,8 +195,7 @@ class CandidateDetailsDialog extends StatelessWidget {
                     label: const Text('Open resume'),
                   ),
                 TextButton.icon(
-                  onPressed: () =>
-                      Navigator.pop(context, CandidateAction.attachResume),
+                  onPressed: () => Navigator.pop(context, CandidateAction.attachResume),
                   icon: const Icon(Icons.attach_file, size: 18),
                   label: Text(hasResume ? 'Replace resume' : 'Attach resume'),
                 ),

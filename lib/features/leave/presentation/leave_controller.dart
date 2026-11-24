@@ -164,8 +164,10 @@ class LeaveController extends ChangeNotifier {
       int typeId,
       DateTime from,
       DateTime to,
-      String reason,
-      ) async {
+      String reason, {
+        bool isHalfDay = false,
+        String? halfDayType,
+      }) async {
     if (isSubmitting) {
       return 'Please wait. Your request is being submitted.';
     }
@@ -181,6 +183,10 @@ class LeaveController extends ChangeNotifier {
       return 'End date cannot be before start date.';
     }
 
+    if (isHalfDay && !start.isAtSameMomentAs(end)) {
+      return 'Half day can only be applied for a single date.';
+    }
+
     isSubmitting = true;
     _notify();
 
@@ -191,6 +197,8 @@ class LeaveController extends ChangeNotifier {
         start,
         end,
         reason.trim(),
+        isHalfDay: isHalfDay,
+        halfDayType: halfDayType,
       );
 
       if (error != null) return error;

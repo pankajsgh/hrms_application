@@ -254,7 +254,7 @@ class _RunTab extends StatelessWidget {
                               money(r.d('net')),
                               style: const TextStyle(
                                 fontSize: 13,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w700,
                                 color: Colors.green,
                               ),
                             ),
@@ -373,7 +373,7 @@ class _MineTab extends StatelessWidget {
                             money(r.d('net')),
                             style: const TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w700,
                               color: Colors.green,
                             ),
                           ),

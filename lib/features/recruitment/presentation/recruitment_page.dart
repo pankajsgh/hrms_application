@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -838,7 +839,9 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
       stage: _string(result['stage'], 'Applied'),
       notes: _string(result['notes']),
       appliedOn: candidate?.appliedOn ?? now,
-      resumePath: candidate?.resumePath,
+      resumePath: (result['resume_path'] as String?)?.trim().isNotEmpty == true
+          ? result['resume_path'] as String
+          : (candidate?.resumePath ?? ''),
       convertedEmployeeId: candidate?.convertedEmployeeId,
       jobTitle: candidate?.jobTitle,
       jobDepartment: candidate?.jobDepartment,
@@ -956,6 +959,36 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
           break;
 
         case CandidateAction.openResume:
+          if (candidate.resumePath != null &&
+              candidate.resumePath!.isNotEmpty) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => const Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+
+            try {
+              final file = File(candidate.resumePath!);
+
+              if (await file.exists()) {
+                await openFile(candidate.resumePath!);
+              } else {
+                if (mounted) {
+                  toast(context, 'File not found on disk');
+                }
+              }
+            } catch (e) {
+              if (mounted) {
+                toast(context, 'Unable to open resume: $e');
+              }
+            } finally {
+              if (mounted) {
+                Navigator.of(context, rootNavigator: true).pop();
+              }
+            }
+          }
         // Add a file-opening package here when resume preview is required.
           break;
 

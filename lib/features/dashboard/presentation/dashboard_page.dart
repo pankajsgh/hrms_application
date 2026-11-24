@@ -114,7 +114,7 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleLarge?.copyWith(
                     color: Colors.white,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     fontSize: 21,
                   ),
                 ),
@@ -477,7 +477,7 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
               Text(
                 '$value',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   fontSize: 11.5,
                 ),
               ),
@@ -637,7 +637,7 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
                 Text(
                   day,
                   style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: colors.primary,
                     fontSize: 13,
                   ),

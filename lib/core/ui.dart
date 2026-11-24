@@ -154,10 +154,16 @@ class PageBox extends StatelessWidget {
   const PageBox({super.key, required this.child});
   final Widget child;
   @override
-  Widget build(BuildContext context) => Padding(
-      padding:
-          EdgeInsets.all(MediaQuery.of(context).size.width < 800 ? 12 : 16),
-      child: child);
+  Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 800;
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 10 : 16,
+        vertical: isMobile ? 6 : 12,
+      ),
+      child: child,
+    );
+  }
 }
 
 class Header extends StatelessWidget {
@@ -168,19 +174,28 @@ class Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.of(context).size.width > 820;
+    if (!wide && actions.isEmpty) {
+      return const SizedBox.shrink();
+    }
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(children: [
-        Expanded(
-            child: wide? Text(title,
-                maxLines: 1,
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w700)): SizedBox()
-        ),
-        for (final a in actions) ...[const SizedBox(width: 8), a],
-      ]),
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: wide
+                ? Text(
+                    title,
+                    maxLines: 1,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w700, fontSize: 18),
+                  )
+                : const SizedBox.shrink(),
+          ),
+          for (final a in actions) ...[const SizedBox(width: 8), a],
+        ],
+      ),
     );
   }
 }

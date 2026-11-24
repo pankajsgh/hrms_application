@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/ui.dart';
@@ -204,6 +203,7 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
 
   Future<void> _refresh() async {
     await _controller.loadReports();
+    toast(context, 'Reports refreshed');
   }
 
   void _onSearch(String value) {
@@ -235,7 +235,7 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
   }
 
   // ------------------------------------------------------------
-  // KPI CARDS
+  // COMPACT & INTERACTIVE KPI CARDS
   // ------------------------------------------------------------
 
   Widget _kpiCard({
@@ -243,56 +243,65 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
     required String value,
     required IconData icon,
     required Color color,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      width: 100,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.6)),
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.6)),
       ),
-      child: Row(
-        children: [
-          Container(
-            height: 38,
-            width: 38,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 21),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Theme.of(context).hintColor,
-                    fontWeight: FontWeight.w500,
-                  ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            children: [
+              Container(
+                height: 34,
+                width: 34,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Icon(icon, color: color, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: theme.hintColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -301,18 +310,9 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-
-        // Responsive columns
-        final int columns = width >= 1000
-            ? 4 // Windows / Large desktop
-            : width >= 600
-            ? 2 // Tablet / Small window
-            : 2; // Mobile
-
-        const spacing = 12.0;
-
-        final cardWidth =
-            (width - (spacing * (columns - 1))) / columns;
+        final int columns = width >= 1000 ? 4 : (width >= 600 ? 2 : 2);
+        const spacing = 10.0;
+        final cardWidth = (width - (spacing * (columns - 1))) / columns;
 
         return Wrap(
           spacing: spacing,
@@ -325,36 +325,37 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
                 value: '${_controller.totalEmployees}',
                 icon: Icons.people_outline,
                 color: Colors.blue,
+                onTap: () => toast(context, 'Total active employees'),
               ),
             ),
             SizedBox(
               width: cardWidth,
               child: _kpiCard(
                 title: 'Total Hours',
-                value:
-                '${_controller.totalHoursWorked.toStringAsFixed(1)} h',
+                value: '${_controller.totalHoursWorked.toStringAsFixed(1)} h',
                 icon: Icons.schedule,
                 color: Colors.purple,
+                onTap: () => toast(context, 'Total hours worked'),
               ),
             ),
             SizedBox(
               width: cardWidth,
               child: _kpiCard(
                 title: 'Avg Daily Hours',
-                value:
-                '${_controller.overallAvgDailyHours.toStringAsFixed(1)} h/d',
+                value: '${_controller.overallAvgDailyHours.toStringAsFixed(1)} h/d',
                 icon: Icons.access_time,
                 color: Colors.teal,
+                onTap: () => toast(context, 'Average daily work hours'),
               ),
             ),
             SizedBox(
               width: cardWidth,
               child: _kpiCard(
                 title: 'Avg Attendance',
-                value:
-                '${_controller.avgAttendanceRate.toStringAsFixed(1)}%',
+                value: '${_controller.avgAttendanceRate.toStringAsFixed(1)}%',
                 icon: Icons.check_circle_outline,
                 color: Colors.green,
+                onTap: () => toast(context, 'Overall attendance rate'),
               ),
             ),
           ],
@@ -362,48 +363,102 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
       },
     );
   }
+
   // ------------------------------------------------------------
-  // TABLES
+  // TABLES & RESPONSIVE LISTS
   // ------------------------------------------------------------
 
   Widget _buildSummaryTable() {
     final rows = _controller.filteredSummaryRows;
+    final isMobile = MediaQuery.of(context).size.width < 800;
+
+    if (isMobile) {
+      if (rows.isEmpty) {
+        return const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No attendance records found for this month.')));
+      }
+      return ListView.separated(
+        itemCount: rows.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, index) {
+          final e = rows[index];
+          return Material(
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: Colors.grey.shade300),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(e.key.s('code'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(e.key.s('name'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                      Text('${e.value.attendanceRate.toStringAsFixed(1)}%',
+                          style: TextStyle(
+                            color: e.value.attendanceRate >= 85 ? Colors.green.shade700 : Colors.orange.shade800,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          )),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text('Dept: ${e.key.s('department')}  •  Working: ${nf(e.value.working)} days',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Present: ${nf(e.value.present)}', style: const TextStyle(fontSize: 11)),
+                      Text('Leave: ${nf(e.value.leave)}', style: const TextStyle(fontSize: 11)),
+                      Text('Absent: ${nf(e.value.absent)}', style: const TextStyle(fontSize: 11)),
+                      Text('Hours: ${(e.value.hours.inMinutes / 60).toStringAsFixed(1)}h', style: const TextStyle(fontSize: 11)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
 
     return TableCard(
       columns: const [
-        DataColumn(label: Text('Code')),
-        DataColumn(label: Text('Employee')),
-        DataColumn(label: Text('Department')),
-        DataColumn(label: Text('Working Days'), numeric: true),
-        DataColumn(label: Text('Present'), numeric: true),
-        DataColumn(label: Text('Half Day'), numeric: true),
-        DataColumn(label: Text('Leave'), numeric: true),
-        DataColumn(label: Text('Unpaid'), numeric: true),
-        DataColumn(label: Text('Absent'), numeric: true),
-        DataColumn(label: Text('Total Hours'), numeric: true),
-        DataColumn(label: Text('Avg Daily Hours'), numeric: true),
-        DataColumn(label: Text('Attendance Rate'), numeric: true),
+        DataColumn(label: Text('Code', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Employee', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Department', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Working', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)), numeric: true),
+        DataColumn(label: Text('Present', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)), numeric: true),
+        DataColumn(label: Text('Half', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)), numeric: true),
+        DataColumn(label: Text('Leave', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)), numeric: true),
+        DataColumn(label: Text('Unpaid', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)), numeric: true),
+        DataColumn(label: Text('Absent', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)), numeric: true),
+        DataColumn(label: Text('Hours', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)), numeric: true),
+        DataColumn(label: Text('Avg/D', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)), numeric: true),
+        DataColumn(label: Text('Rate', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)), numeric: true),
       ],
       rows: [
         for (final e in rows)
           DataRow(
             cells: [
-              DataCell(Text(e.key.s('code'))),
-              DataCell(Text(e.key.s('name'))),
-              DataCell(Text(e.key.s('department'))),
-              DataCell(Text(nf(e.value.working))),
-              DataCell(Text(nf(e.value.present))),
-              DataCell(Text(nf(e.value.half))),
-              DataCell(Text(nf(e.value.leave))),
-              DataCell(Text(nf(e.value.unpaid))),
-              DataCell(Text(nf(e.value.absent))),
-              DataCell(
-                Text((e.value.hours.inMinutes / 60).toStringAsFixed(1)),
-              ),
+              DataCell(Text(e.key.s('code'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5))),
+              DataCell(Text(e.key.s('name'), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text(e.key.s('department'), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text(nf(e.value.working), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text(nf(e.value.present), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text(nf(e.value.half), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text(nf(e.value.leave), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text(nf(e.value.unpaid), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text(nf(e.value.absent), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text((e.value.hours.inMinutes / 60).toStringAsFixed(1), style: const TextStyle(fontSize: 11.5))),
               DataCell(
                 Text(
-                  '${e.value.avgDailyHours.toStringAsFixed(1)} h/d',
-                  style: const TextStyle(fontWeight: FontWeight.w500),
+                  '${e.value.avgDailyHours.toStringAsFixed(1)}h',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5),
                 ),
               ),
               DataCell(
@@ -413,7 +468,8 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
                     color: e.value.attendanceRate >= 85
                         ? Colors.green.shade700
                         : Colors.orange.shade800,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11.5,
                   ),
                 ),
               ),
@@ -426,36 +482,84 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
 
   Widget _buildDetailTable() {
     final rows = _controller.filteredDetailRows;
+    final isMobile = MediaQuery.of(context).size.width < 800;
+
+    if (isMobile) {
+      if (rows.isEmpty) {
+        return const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No attendance details found for this month.')));
+      }
+      return ListView.separated(
+        itemCount: rows.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, index) {
+          final r = rows[index];
+          return Material(
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: Colors.grey.shade300),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(fmtDate(r.s('date')), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(r.s('name'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                      StatusChip(r.s('status')),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text('Dept: ${r.s('department')}  •  Code: ${r.s('code')}',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('In: ${fmtTime(r['check_in'])}', style: const TextStyle(fontSize: 11)),
+                      Text('Out: ${fmtTime(r['check_out'])}', style: const TextStyle(fontSize: 11)),
+                      Text('Hours: ${((workedBetween(r['check_in'], r['check_out'])?.inMinutes ?? 0) / 60).toStringAsFixed(1)}h', style: const TextStyle(fontSize: 11)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
 
     return TableCard(
       columns: const [
-        DataColumn(label: Text('Date')),
-        DataColumn(label: Text('Code')),
-        DataColumn(label: Text('Employee')),
-        DataColumn(label: Text('Department')),
-        DataColumn(label: Text('Status')),
-        DataColumn(label: Text('Check In')),
-        DataColumn(label: Text('Check Out')),
-        DataColumn(label: Text('Worked Hours'), numeric: true),
-        DataColumn(label: Text('Note')),
+        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Code', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Employee', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Department', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('In', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Out', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Hours', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)), numeric: true),
+        DataColumn(label: Text('Note', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
       ],
       rows: [
         for (final r in rows)
           DataRow(
             cells: [
-              DataCell(Text(fmtDate(r.s('date')))),
-              DataCell(Text(r.s('code'))),
-              DataCell(Text(r.s('name'))),
-              DataCell(Text(r.s('department'))),
+              DataCell(Text(fmtDate(r.s('date')), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text(r.s('code'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5))),
+              DataCell(Text(r.s('name'), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text(r.s('department'), style: const TextStyle(fontSize: 11.5))),
               DataCell(StatusChip(r.s('status'))),
-              DataCell(Text(fmtTime(r['check_in']))),
-              DataCell(Text(fmtTime(r['check_out']))),
+              DataCell(Text(fmtTime(r['check_in']), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text(fmtTime(r['check_out']), style: const TextStyle(fontSize: 11.5))),
               DataCell(
                 Text(
-                  ((workedBetween(r['check_in'], r['check_out'])?.inMinutes ??
-                      0) /
-                      60)
+                  ((workedBetween(r['check_in'], r['check_out'])?.inMinutes ?? 0) / 60)
                       .toStringAsFixed(1),
+                  style: const TextStyle(fontSize: 11.5),
                 ),
               ),
               DataCell(
@@ -465,6 +569,7 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
                     r.s('note'),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11.5),
                   ),
                 ),
               ),
@@ -477,27 +582,68 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
 
   Widget _buildLeavesTable() {
     final rows = _controller.filteredLeaveRows;
+    final isMobile = MediaQuery.of(context).size.width < 800;
+
+    if (isMobile) {
+      if (rows.isEmpty) {
+        return const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No leave records found.')));
+      }
+      return ListView.separated(
+        itemCount: rows.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, index) {
+          final l = rows[index];
+          return Material(
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: Colors.grey.shade300),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: Text(l.s('emp_name'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                      StatusChip(l.s('status')),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text('Type: ${l.s('type_name')}  •  Days: ${nf(l.d('days'))}',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                  const SizedBox(height: 4),
+                  Text('From: ${fmtDate(l.s('start_date'))}  To: ${fmtDate(l.s('end_date'))}',
+                      style: const TextStyle(fontSize: 11)),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
 
     return TableCard(
       columns: const [
-        DataColumn(label: Text('Employee')),
-        DataColumn(label: Text('Leave Type')),
-        DataColumn(label: Text('From')),
-        DataColumn(label: Text('To')),
-        DataColumn(label: Text('Days'), numeric: true),
-        DataColumn(label: Text('Reason')),
-        DataColumn(label: Text('Status')),
-        DataColumn(label: Text('Applied On')),
+        DataColumn(label: Text('Employee', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Type', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('From', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('To', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Days', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)), numeric: true),
+        DataColumn(label: Text('Reason', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Applied', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
       ],
       rows: [
         for (final l in rows)
           DataRow(
             cells: [
-              DataCell(Text(l.s('emp_name'))),
-              DataCell(Text(l.s('type_name'))),
-              DataCell(Text(fmtDate(l.s('start_date')))),
-              DataCell(Text(fmtDate(l.s('end_date')))),
-              DataCell(Text(nf(l.d('days')))),
+              DataCell(Text(l.s('emp_name'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5))),
+              DataCell(Text(l.s('type_name'), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text(fmtDate(l.s('start_date')), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text(fmtDate(l.s('end_date')), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text(nf(l.d('days')), style: const TextStyle(fontSize: 11.5))),
               DataCell(
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 180),
@@ -505,11 +651,12 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
                     l.s('reason'),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11.5),
                   ),
                 ),
               ),
               DataCell(StatusChip(l.s('status'))),
-              DataCell(Text(fmtDate(l.s('applied_on')))),
+              DataCell(Text(fmtDate(l.s('applied_on')), style: const TextStyle(fontSize: 11.5))),
             ],
           ),
       ],
@@ -519,27 +666,73 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
 
   Widget _buildEmployeesTable() {
     final rows = _controller.filteredEmployeeRows;
+    final isMobile = MediaQuery.of(context).size.width < 800;
+
+    if (isMobile) {
+      if (rows.isEmpty) {
+        return const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No employees found.')));
+      }
+      return ListView.separated(
+        itemCount: rows.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, index) {
+          final e = rows[index];
+          return Material(
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: Colors.grey.shade300),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(e.s('code'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(e.s('name'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                            StatusChip(e.s('status')),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text('Dept: ${e.s('department')}  •  Role: ${e.s('designation')}',
+                            style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
 
     return TableCard(
       columns: const [
-        DataColumn(label: Text('Code')),
-        DataColumn(label: Text('Name')),
-        DataColumn(label: Text('Department')),
-        DataColumn(label: Text('Designation')),
-        DataColumn(label: Text('Manager')),
-        DataColumn(label: Text('Joined')),
-        DataColumn(label: Text('Status')),
+        DataColumn(label: Text('Code', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Name', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Department', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Designation', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Manager', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Joined', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
+        DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5))),
       ],
       rows: [
         for (final e in rows)
           DataRow(
             cells: [
-              DataCell(Text(e.s('code'))),
-              DataCell(Text(e.s('name'))),
-              DataCell(Text(e.s('department'))),
-              DataCell(Text(e.s('designation'))),
-              DataCell(Text(e.s('manager_name'))),
-              DataCell(Text(fmtDate(e.s('join_date')))),
+              DataCell(Text(e.s('code'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5))),
+              DataCell(Text(e.s('name'), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text(e.s('department'), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text(e.s('designation'), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text(e.s('manager_name'), style: const TextStyle(fontSize: 11.5))),
+              DataCell(Text(fmtDate(e.s('join_date')), style: const TextStyle(fontSize: 11.5))),
               DataCell(StatusChip(e.s('status'))),
             ],
           ),
@@ -548,18 +741,14 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
     );
   }
 
-  // ------------------------------------------------------------
-  // TOP FILTER BAR
-  // ------------------------------------------------------------
-
   Widget _buildToolbar() {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 520;
 
         return Wrap(
-          spacing: 10,
-          runSpacing: 10,
+          spacing: 8,
+          runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             ListenableBuilder(
@@ -575,53 +764,63 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
               },
             ),
             SizedBox(
-              width: compact ? constraints.maxWidth-100 : 270,
-              child:TextField(
+              width: compact ? constraints.maxWidth - 90 : 250,
+              height: 38,
+              child: TextField(
                 controller: _searchController,
                 onChanged: _onSearch,
+                style: const TextStyle(fontSize: 12),
                 decoration: InputDecoration(
-                  hintText: 'Search employee or department...',
-                  prefixIcon: const Icon(Icons.search, size: 19),
+                  hintText: 'Search records...',
+                  prefixIcon: const Icon(Icons.search, size: 17),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
                     tooltip: 'Clear search',
-                    icon: const Icon(Icons.close, size: 18),
+                    icon: const Icon(Icons.close, size: 16),
                     onPressed: _clearSearch,
                   )
                       : null,
+                  filled: true,
+                  fillColor: Colors.white,
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
+                    horizontal: 10,
+                    vertical: 8,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.grey.shade400),
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.grey.shade600, width: 1.5),
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.blue, width: 1.2),
                   ),
                 ),
               ),
             ),
-            OutlinedButton.icon(
-              onPressed: _refresh,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: compact ? const SizedBox.shrink():const Text('Refresh')
+            SizedBox(
+              height: 38,
+              child: OutlinedButton.icon(
+                onPressed: _refresh,
+                icon: const Icon(Icons.refresh, size: 16),
+                label: compact ? const SizedBox.shrink() : const Text('Refresh', style: TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
             ),
           ],
         );
       },
     );
   }
-
-  // ------------------------------------------------------------
-  // EXPORT MENU
-  // ------------------------------------------------------------
 
   Widget _buildExportMenu() {
     return PopupMenuButton<String>(
@@ -632,9 +831,9 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
           value: 'summary',
           child: Row(
             children: [
-              Icon(Icons.table_chart_outlined, size: 19),
-              SizedBox(width: 10),
-              Text('Attendance Summary'),
+              Icon(Icons.table_chart_outlined, size: 17),
+              SizedBox(width: 8),
+              Text('Attendance Summary', style: TextStyle(fontSize: 12.5)),
             ],
           ),
         ),
@@ -642,9 +841,9 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
           value: 'detail',
           child: Row(
             children: [
-              Icon(Icons.view_list_outlined, size: 19),
-              SizedBox(width: 10),
-              Text('Attendance Details'),
+              Icon(Icons.view_list_outlined, size: 17),
+              SizedBox(width: 8),
+              Text('Attendance Details', style: TextStyle(fontSize: 12.5)),
             ],
           ),
         ),
@@ -652,9 +851,9 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
           value: 'leaves',
           child: Row(
             children: [
-              Icon(Icons.event_note_outlined, size: 19),
-              SizedBox(width: 10),
-              Text('Leave Requests'),
+              Icon(Icons.event_note_outlined, size: 17),
+              SizedBox(width: 8),
+              Text('Leave Requests', style: TextStyle(fontSize: 12.5)),
             ],
           ),
         ),
@@ -662,39 +861,37 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
           value: 'employees',
           child: Row(
             children: [
-              Icon(Icons.people_outline, size: 19),
-              SizedBox(width: 10),
-              Text('Employee Directory'),
+              Icon(Icons.people_outline, size: 17),
+              SizedBox(width: 8),
+              Text('Employee Directory', style: TextStyle(fontSize: 12.5)),
             ],
           ),
         ),
       ],
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
         decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).dividerColor),
-          borderRadius: BorderRadius.circular(9),
+          color: Colors.white,
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.download_outlined, size: 18),
-            SizedBox(width: 7),
+            Icon(Icons.download_outlined, size: 16),
+            SizedBox(width: 6),
             Text(
               'Export',
-              style: TextStyle(fontWeight: FontWeight.w500),
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
             ),
             SizedBox(width: 4),
-            Icon(Icons.keyboard_arrow_down, size: 18),
+            Icon(Icons.keyboard_arrow_down, size: 16),
           ],
         ),
       ),
     );
   }
-
-  // ------------------------------------------------------------
-  // MAIN BUILD
-  // ------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -706,12 +903,9 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
             'Reports & Analytics',
             actions: [_buildExportMenu()],
           ),
-          // const SizedBox(height: 10),
-
+          const SizedBox(height: 12),
           _buildToolbar(),
-          const SizedBox(height: 16),
-
-          // Expanded must be outside ListenableBuilder.
+          const SizedBox(height: 14),
           Expanded(
             child: ListenableBuilder(
               listenable: _controller,
@@ -766,7 +960,7 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildKpiRow(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     Expanded(
                       child: TabsView(
                         titles: const [

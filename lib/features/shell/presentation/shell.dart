@@ -19,6 +19,7 @@ import '../../reports/presentation/reports_page.dart';
 import '../../special_days/presentation/special_days_page.dart';
 import '../../users/presentation/users_page.dart';
 import '../../leave/presentation/leave_page.dart';
+import '../../debug/presentation/database_inspector_page.dart';
 
 // -----------------------------------------------------------------------------
 // NAVIGATION MODEL
@@ -123,6 +124,13 @@ class _ShellState extends State<Shell> {
         'Users & Access',
         Icons.admin_panel_settings_outlined,
             () => const UsersFeaturePage(),
+      ),
+
+    if (Session.isAdmin)
+      _Nav(
+        'Database Inspector',
+        Icons.storage_rounded,
+            () => const DatabaseInspectorPage(),
       ),
   ];
 
@@ -626,7 +634,7 @@ class _ShellState extends State<Shell> {
                             .textTheme
                             .titleMedium
                             ?.copyWith(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       Text(

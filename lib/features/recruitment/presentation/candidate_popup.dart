@@ -1,5 +1,13 @@
 
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:doc_text_extractor/doc_text_extractor.dart';
+
 import 'package:hrms/comman_widget/customer_dropdown.dart';
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/ui.dart';
@@ -53,12 +61,23 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
 
   late final List<JobEntity> _availableJobs;
 
+  final TextExtractor _extractor = TextExtractor();
+
   String? _jobId;
   String _source = '';
   String _rating = '0';
   String _stage = 'Applied';
 
+  String? _resumePath;
+  String? _originalResumePath;
+
+  PlatformFile? _resumeFile;
+
+  bool _isParsingResume = false;
+  bool _didSubmit = false;
+
   CandidateEntity? get _candidate => widget.candidate;
+
   bool get _isNew => _candidate == null;
 
   static const Map<String, String> _ratings = {
@@ -76,7 +95,6 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
 
     final c = _candidate;
 
-    // Approved jobs plus the candidate's current job.
     _availableJobs = widget.jobs.where((job) {
       return job.id != null &&
           (job.approval == 'Approved' || job.id == c?.jobId);
@@ -118,9 +136,10 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
     _source = c?.source ?? '';
     _rating = c?.rating.toString() ?? '0';
 
-    _stage = c?.stage.isNotEmpty == true
-        ? c!.stage
-        : 'Applied';
+    _resumePath = c?.resumePath;
+    _originalResumePath = c?.resumePath;
+
+    _stage = c?.stage.isNotEmpty == true ? c!.stage : 'Applied';
 
     if (!_ratings.containsKey(_rating)) {
       _rating = '0';
@@ -136,8 +155,330 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
     _company.dispose();
     _salary.dispose();
     _notes.dispose();
+
+    // If the dialog was cancelled, delete a newly copied resume.
+    // Never delete the original candidate resume here.
+    if (!_didSubmit &&
+        _resumePath != null &&
+        _resumePath != _originalResumePath) {
+      unawaited(_deleteLocalFile(_resumePath!));
+    }
+
     super.dispose();
   }
+
+  // ------------------------------------------------------------
+  // LOCAL FILE STORAGE
+  // ------------------------------------------------------------
+
+  Future<String> _saveResumeLocally(PlatformFile file) async {
+    final bytes = file.bytes;
+
+    if (bytes == null || bytes.isEmpty) {
+      throw Exception('Unable to read selected resume');
+    }
+
+    final appDir = await getApplicationSupportDirectory();
+
+    final resumeDir = Directory(
+      p.join(appDir.path, 'resumes'),
+    );
+
+    if (!await resumeDir.exists()) {
+      await resumeDir.create(recursive: true);
+    }
+
+    final extension = p.extension(file.name).toLowerCase();
+
+    final fileName =
+        'resume_${DateTime.now().microsecondsSinceEpoch}$extension';
+
+    final savedFile = File(
+      p.join(resumeDir.path, fileName),
+    );
+
+    await savedFile.writeAsBytes(bytes, flush: true);
+
+    return savedFile.path;
+  }
+
+  Future<void> _deleteLocalFile(String path) async {
+    try {
+      final file = File(path);
+
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (e) {
+      debugPrint('Resume delete error: $e');
+    }
+  }
+
+  // ------------------------------------------------------------
+  // RESUME PICKER
+  // ------------------------------------------------------------
+
+  Future<void> _pickResume() async {
+    if (_isParsingResume) return;
+
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx'],
+        withData: true,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+
+      if (file.bytes == null || file.bytes!.isEmpty) {
+        toast(context, 'Unable to read selected resume');
+        return;
+      }
+
+      setState(() {
+        _isParsingResume = true;
+      });
+
+      // Copy the selected file into permanent local app storage.
+      final newPath = await _saveResumeLocally(file);
+
+      if (!mounted) {
+        await _deleteLocalFile(newPath);
+        return;
+      }
+
+      // Keep the previous path temporarily so cancellation
+      // does not remove the original candidate attachment.
+      final previousPath = _resumePath;
+
+      setState(() {
+        _resumeFile = file;
+        _resumePath = newPath;
+      });
+
+      // Extract text and fill form fields.
+      await _parseResume(newPath);
+
+      // If the previous path was another newly uploaded file,
+      // it can now be deleted.
+      if (previousPath != null &&
+          previousPath != _originalResumePath &&
+          previousPath != newPath) {
+        await _deleteLocalFile(previousPath);
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      toast(context, 'Resume upload failed: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isParsingResume = false;
+        });
+      }
+    }
+  }
+
+  // ------------------------------------------------------------
+  // EXTRACT RESUME TEXT LOCALLY
+  // ------------------------------------------------------------
+
+  Future<void> _parseResume(String filePath) async {
+    try {
+      final file = File(filePath);
+
+      if (!await file.exists()) {
+        throw Exception('Resume file does not exist');
+      }
+
+      // This reads the local file. No backend API is called.
+      final result = await _extractor.extractText(
+        filePath,
+        isUrl: false,
+      );
+
+      final resumeText = result.text?.toString() ?? '';
+
+      if (resumeText.trim().isEmpty) {
+        throw Exception(
+          'No readable text found. The PDF may be scanned or image-based.',
+        );
+      }
+
+      if (!mounted) return;
+
+      _fillCandidateFromResume(resumeText);
+
+      toast(context, 'Resume saved and candidate details filled');
+    } catch (e) {
+      if (!mounted) return;
+
+      toast(context, 'Resume extraction failed: $e');
+    }
+  }
+
+  // ------------------------------------------------------------
+  // RESUME DATA EXTRACTION
+  // ------------------------------------------------------------
+
+  String _findFirst(
+      String text,
+      List<RegExp> patterns,
+      ) {
+    for (final pattern in patterns) {
+      final match = pattern.firstMatch(text);
+
+      if (match == null) continue;
+
+      final value = (match.groupCount >= 1
+          ? match.group(1)
+          : match.group(0))
+          ?.trim();
+
+      if (value != null && value.isNotEmpty) {
+        return value;
+      }
+    }
+
+    return '';
+  }
+
+  void _fillCandidateFromResume(String text) {
+    final lines = text
+        .split(RegExp(r'[\r\n]+'))
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+
+    // NAME
+    String name = _findFirst(text, [
+      RegExp(
+        r'(?:full\s*name|candidate\s*name|name)\s*[:\-]\s*([^\r\n]+)',
+        caseSensitive: false,
+      ),
+    ]);
+
+    // Fallback: first suitable line in the resume.
+    if (name.isEmpty) {
+      for (final line in lines.take(8)) {
+        final lower = line.toLowerCase();
+
+        final ignored = [
+          'resume',
+          'curriculum vitae',
+          'curriculum',
+          'profile',
+          'contact',
+          'personal details',
+          'professional summary',
+        ];
+
+        if (line.length < 3 || line.length > 60) continue;
+        if (line.contains('@')) continue;
+        if (RegExp(r'\d{6,}').hasMatch(line)) continue;
+        if (ignored.contains(lower)) continue;
+
+        name = line;
+        break;
+      }
+    }
+
+    // EMAIL
+    final email = _findFirst(text, [
+      RegExp(
+        r'[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}',
+        caseSensitive: false,
+      ),
+    ]);
+
+    // PHONE
+    final phone = _findFirst(text, [
+      RegExp(
+        r'(?<!\d)(?:\+91[\s-]?)?[6-9]\d{9}(?!\d)',
+      ),
+    ]);
+
+    // EXPERIENCE
+    final experience = _findFirst(text, [
+      RegExp(
+        r'(\d+(?:\.\d+)?)\s*\+?\s*(?:years?|yrs?)\s*(?:of\s*)?(?:experience|exp)',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'(?:total\s*)?experience\s*[:\-]\s*(\d+(?:\.\d+)?)',
+        caseSensitive: false,
+      ),
+    ]);
+
+    // CURRENT COMPANY
+    final company = _findFirst(text, [
+      RegExp(
+        r'(?:current\s*company|present\s*company|company)\s*[:\-]\s*([^\r\n]+)',
+        caseSensitive: false,
+      ),
+    ]);
+
+    // EXPECTED SALARY
+    final salary = _findFirst(text, [
+      RegExp(
+        r'(?:expected\s*salary|salary\s*expectation|expected\s*ctc)\s*[:\-]\s*(?:₹|rs\.?\s*)?([0-9,]+(?:\.\d+)?\s*(?:lpa|lakhs?|k)?)',
+        caseSensitive: false,
+      ),
+    ]);
+
+    setState(() {
+      // Only overwrite fields for which a value was extracted.
+      if (name.isNotEmpty) {
+        _name.text = name;
+      }
+
+      if (email.isNotEmpty) {
+        _email.text = email;
+      }
+
+      if (phone.isNotEmpty) {
+        _phone.text = phone;
+      }
+
+      if (experience.isNotEmpty) {
+        _experience.text = experience;
+      }
+
+      if (company.isNotEmpty) {
+        _company.text = company;
+      }
+
+      if (salary.isNotEmpty) {
+        _salary.text = salary;
+      }
+    });
+  }
+
+  // ------------------------------------------------------------
+  // REMOVE RESUME
+  // ------------------------------------------------------------
+
+  Future<void> _removeResume() async {
+    final path = _resumePath;
+
+    setState(() {
+      _resumePath = null;
+      _resumeFile = null;
+    });
+
+    // Delete only a newly selected file.
+    // The original file remains untouched until the candidate
+    // update is saved by the parent repository.
+    if (path != null && path != _originalResumePath) {
+      await _deleteLocalFile(path);
+    }
+  }
+
+  // ------------------------------------------------------------
+  // SUBMIT CANDIDATE
+  // ------------------------------------------------------------
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
@@ -146,6 +487,8 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
       toast(context, 'Please select a job opening');
       return;
     }
+
+    _didSubmit = true;
 
     Navigator.pop<Map<String, Object?>>(context, {
       'job': _jobId!,
@@ -159,8 +502,13 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
       'rating': _rating,
       'stage': _stage,
       'notes': _notes.text.trim(),
+      'resume_path': _resumePath,
     });
   }
+
+  // ------------------------------------------------------------
+  // INPUT DECORATION
+  // ------------------------------------------------------------
 
   InputDecoration _decoration(
       String label, {
@@ -260,6 +608,68 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
 
   Widget _gap() => const SizedBox(height: 12);
 
+  // ------------------------------------------------------------
+  // RESUME BUTTON
+  // ------------------------------------------------------------
+
+  Widget _resumeUploadButton() {
+    return OutlinedButton.icon(
+      onPressed: _isParsingResume ? null : _pickResume,
+      icon: _isParsingResume
+          ? const SizedBox(
+        height: 16,
+        width: 16,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      )
+          : const Icon(Icons.upload_file, size: 18),
+      label: Text(
+        _isParsingResume ? 'Reading...' : 'Upload Resume',
+        style: const TextStyle(fontSize: 12),
+      ),
+    );
+  }
+
+  Widget _resumeFileInfo() {
+    if (_resumePath == null || _resumePath!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 8,
+      ),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.description_outlined, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              p.basename(_resumePath!),
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Remove resume',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.close, size: 18),
+            onPressed: _isParsingResume ? null : _removeResume,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // MAIN UI
+  // ------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -294,10 +704,18 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
+                        // PERSONAL INFORMATION
                         _CandidateSection(
                           title: 'Personal information',
                           subtitle: 'Candidate contact details',
                           icon: Icons.person_outline_rounded,
+                          trailing: Row(
+                            children: [
+                              Text("Auto fill", style: TextStyle(fontSize: 11, color: Colors.green),),
+                              SizedBox(width: 12,),
+                              _resumeUploadButton(),
+                            ],
+                          ),
                           children: [
                             _row(
                               CustomDropdown<String>(
@@ -376,8 +794,11 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
                                 return null;
                               },
                             ),
+                            _resumeFileInfo(),
                           ],
                         ),
+
+                        // PROFESSIONAL INFORMATION
                         _CandidateSection(
                           title: 'Professional information',
                           subtitle: 'Experience and salary expectations',
@@ -433,6 +854,8 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
                             ),
                           ],
                         ),
+
+                        // EVALUATION AND PIPELINE
                         _CandidateSection(
                           title: 'Evaluation & pipeline',
                           subtitle: 'Candidate rating and recruitment stage',
@@ -468,7 +891,9 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
                                     ),
                                 ],
                                 onChanged: (value) {
-                                  setState(() => _stage = value ?? 'Applied');
+                                  setState(
+                                        () => _stage = value ?? 'Applied',
+                                  );
                                 },
                               ),
                             ),
@@ -492,7 +917,7 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
             _CandidateFooter(
               isNew: _isNew,
               onCancel: () => Navigator.pop(context),
-              onSave: _submit,
+              onSave: _isParsingResume ? null : _submit,
             ),
           ],
         ),
@@ -500,6 +925,10 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
     );
   }
 }
+
+// ============================================================
+// CANDIDATE HEADER
+// ============================================================
 
 class _CandidateHeader extends StatelessWidget {
   const _CandidateHeader({
@@ -576,6 +1005,10 @@ class _CandidateHeader extends StatelessWidget {
   }
 }
 
+// ============================================================
+// CANDIDATE FOOTER
+// ============================================================
+
 class _CandidateFooter extends StatelessWidget {
   const _CandidateFooter({
     required this.isNew,
@@ -585,7 +1018,7 @@ class _CandidateFooter extends StatelessWidget {
 
   final bool isNew;
   final VoidCallback onCancel;
-  final VoidCallback onSave;
+  final VoidCallback? onSave;
 
   @override
   Widget build(BuildContext context) {
@@ -621,7 +1054,9 @@ class _CandidateFooter extends StatelessWidget {
           FilledButton.icon(
             onPressed: onSave,
             icon: const Icon(Icons.save_outlined, size: 18),
-            label: Text(isNew ? 'Save candidate' : 'Update candidate'),
+            label: Text(
+              isNew ? 'Save candidate' : 'Update candidate',
+            ),
           ),
         ],
       ),
@@ -629,18 +1064,24 @@ class _CandidateFooter extends StatelessWidget {
   }
 }
 
+// ============================================================
+// CANDIDATE SECTION
+// ============================================================
+
 class _CandidateSection extends StatelessWidget {
   const _CandidateSection({
     required this.title,
     required this.subtitle,
     required this.icon,
     required this.children,
+    this.trailing,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
   final List<Widget> children;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -696,6 +1137,10 @@ class _CandidateSection extends StatelessWidget {
                   ],
                 ),
               ),
+              if (trailing != null) ...[
+                const SizedBox(width: 8),
+                trailing!,
+              ],
             ],
           ),
           const SizedBox(height: 16),
