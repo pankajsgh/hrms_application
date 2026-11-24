@@ -8,7 +8,8 @@ import '../../employees/data/employees_repository.dart';
 
 class UsersRepository {
   Future<List<UserEntity>> users() async {
-    final raw = await Repo.queryOrLocal('users', {}, () => Db.db.rawQuery(
+    final raw = await Repo.queryOrLocal('users', {},
+            () => Db.db.rawQuery(
         'SELECT u.*, e.name AS emp_name FROM users u '
         'LEFT JOIN employees e ON e.id = u.employee_id ORDER BY u.username'));
     return raw.map((r) => UserEntity.fromMap(r)).toList();
@@ -47,7 +48,7 @@ class UsersRepository {
         where: 'id = ?', whereArgs: [userId]);
   }
 
-  Future<List<EmployeeEntity>> activeEmployees() => EmployeesRepository().employees(activeOnly: true);
+  Future<List<EmployeeEntity>> activeEmployees() => EmployeesRepository().fetchEmployees(activeOnly: true);
 
   Future<List<EmployeeEntity>> fetchActiveEmployees() => activeEmployees();
 }

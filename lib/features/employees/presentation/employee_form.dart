@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hrms/comman_widget/customer_dropdown.dart';
 import 'package:hrms/data/global_data.dart';
 import 'package:hrms/features/employees/data/employees_repository.dart';
@@ -12,11 +13,10 @@ Future<int?> showEmployeeForm(
     BuildContext context, {
       EmployeeEntity? existing,
     }) async {
+
   final isNew = existing == null;
 
-  final initialCode = isNew
-      ? await EmployeesRepository().nextCode()
-      : existing.s('code');
+  final initialCode = isNew ? await EmployeesRepository().nextCode() : existing.s('code');
 
   if (!context.mounted) return null;
 
@@ -116,7 +116,7 @@ Future<int?> showEmployeeForm(
   List<EmployeeEntity> managerOptions;
 
   try {
-    final emps = await EmployeesRepository().employees(activeOnly: true);
+    final emps = await EmployeesRepository().fetchEmployees(activeOnly: true);
 
     managerOptions = emps
         .where((e) => e.i('id') != existing?.i('id'))
@@ -226,7 +226,7 @@ Future<int?> showEmployeeForm(
                 );
               }
 
-              // Common text field.
+
               Widget input(
                   TextEditingController controller,
                   String label, {
@@ -236,6 +236,7 @@ Future<int?> showEmployeeForm(
                     String? Function(String?)? validator,
                     int maxLines = 1,
                     bool readOnly = false,
+                    bool isDecimal = false,
                   }) {
                 return SizedBox(
                   height: maxLines > 1 ? null : 46,
@@ -244,6 +245,13 @@ Future<int?> showEmployeeForm(
                     readOnly: readOnly,
                     maxLines: maxLines,
                     keyboardType: keyboard,
+                    inputFormatters: isDecimal
+                        ? [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d*\.?\d{0,2}'),
+                      ),
+                    ]
+                        : null,
                     validator: validator,
                     textAlignVertical: TextAlignVertical.center,
                     style: const TextStyle(fontSize: 12),
@@ -256,7 +264,6 @@ Future<int?> showEmployeeForm(
                   ),
                 );
               }
-
 
               // Section card.
               Widget section(
@@ -706,6 +713,7 @@ Future<int?> showEmployeeForm(
                                         const TextInputType.numberWithOptions(
                                           decimal: true,
                                         ),
+                                        isDecimal: true,
                                       ),
                                       input(
                                         hraCtrl,
@@ -715,6 +723,7 @@ Future<int?> showEmployeeForm(
                                         const TextInputType.numberWithOptions(
                                           decimal: true,
                                         ),
+                                        isDecimal: true,
                                       ),
                                     ),
                                     fieldRow(
@@ -726,6 +735,7 @@ Future<int?> showEmployeeForm(
                                         const TextInputType.numberWithOptions(
                                           decimal: true,
                                         ),
+                                        isDecimal: true,
                                       ),
                                       input(
                                         pfCtrl,
@@ -736,7 +746,9 @@ Future<int?> showEmployeeForm(
                                         const TextInputType.numberWithOptions(
                                           decimal: true,
                                         ),
+                                        isDecimal: true,
                                       ),
+
                                     ),
                                     input(
                                       deductCtrl,
@@ -746,6 +758,7 @@ Future<int?> showEmployeeForm(
                                       const TextInputType.numberWithOptions(
                                         decimal: true,
                                       ),
+                                      isDecimal: true,
                                     ),
 
                                     const SizedBox(height: 12),
@@ -923,6 +936,14 @@ Future<int?> showEmployeeForm(
                                   );
 
                                   if (!context.mounted) return;
+
+                                  if (savedId <= 0) {
+                                    throw StateError(
+                                      'The save operation did not return '
+                                          'a valid employee ID. Check '
+                                          'LocalDatasource.saveData.',
+                                    );
+                                  }
 
                                   // Updates keep their existing primary key.
                                   // Inserts must return a valid new ID.

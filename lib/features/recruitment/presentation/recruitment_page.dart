@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/session.dart';
 import 'package:hrms/core/ui.dart';
+import 'package:hrms/data/global_data.dart';
 import 'package:hrms/domain/entities/employee_entity.dart';
 import 'package:hrms/domain/entities/recruitment_entity.dart';
 import 'package:hrms/features/recruitment/presentation/Job_popup.dart';
@@ -30,18 +31,24 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
   Timer? _searchDebounce;
 
   int _tab = 0;
+  int _loadRequest = 0;
+
   List<JobEntity> _jobs = [];
   List<CandidateEntity> _cands = [];
   List<InterviewEntity> _ints = [];
+
   Map<String, int> _stats = {};
 
   String _jobFilter = 'All';
   int? _pipeJob;
   String _q = '';
+
   bool _board = true;
+  bool _isLoading = false;
+
   String _intFilter = 'Upcoming';
 
-  static const _stageColors = <String, Color>{
+  static const Map<String, Color> _stageColors = {
     'Applied': Colors.blueGrey,
     'Screening': Colors.orange,
     'Interview': Colors.blue,
@@ -50,7 +57,7 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
     'Rejected': Colors.red,
   };
 
-  static const _jobStatusColors = <String, Color>{
+  static const Map<String, Color> _jobStatusColors = {
     'Open': Colors.green,
     'On hold': Colors.orange,
     'Closed': Colors.blueGrey,
@@ -74,30 +81,74 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
     super.dispose();
   }
 
+  // ---------------------------------------------------------------- utilities
+
+  String _string(Object? value, [String fallback = '']) {
+    return value?.toString() ?? fallback;
+  }
+
+  int _int(Object? value, [int fallback = 0]) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  double _double(Object? value, [double fallback = 0]) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  Color _statusColor(String status) {
+    final cs = Theme.of(context).colorScheme;
+
+    return _jobStatusColors[status] ??
+        _stageColors[status] ??
+        cs.primary;
+  }
+
+  // ---------------------------------------------------------------- data load
+
   Future<void> _load() async {
+    final request = ++_loadRequest;
+
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
+
     try {
       final jobs = await _repo.jobs();
 
-      if (_pipeJob != null && !jobs.any((j) => j.id == _pipeJob)) {
-        _pipeJob = null;
+      if (!mounted || request != _loadRequest) return;
+
+      final selectedJob = _pipeJob != null &&
+          jobs.any((job) => job.id == _pipeJob)
+          ? _pipeJob
+          : null;
+
+      if (_pipeJob != selectedJob) {
+        _pipeJob = selectedJob;
       }
 
-      final cands = await _repo.candidates(jobId: _pipeJob, q: _q);
-      final ints = await _repo.interviews();
-      final stats = await _repo.recruitmentStats();
+      final results = await Future.wait([
+        _repo.candidates(jobId: selectedJob, q: _q),
+        _repo.interviews(),
+        _repo.recruitmentStats(),
+      ]);
 
-      if (!mounted) return;
+      if (!mounted || request != _loadRequest) return;
 
       setState(() {
         _jobs = jobs;
-        _cands = cands;
-        _ints = ints;
-        _stats = stats;
+        _cands = results[0] as List<CandidateEntity>;
+        _ints = results[1] as List<InterviewEntity>;
+        _stats = results[2] as Map<String, int>;
+        _isLoading = false;
       });
     } catch (e) {
-      if (mounted) {
-        toast(context, 'Could not load recruitment data: $e');
-      }
+      if (!mounted || request != _loadRequest) return;
+
+      setState(() => _isLoading = false);
+      toast(context, 'Could not load recruitment data: $e');
     }
   }
 
@@ -107,41 +158,29 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
     return job.status;
   }
 
-  int _toInt(Object? value, [int fallback = 0]) {
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    return int.tryParse(value?.toString() ?? '') ?? fallback;
-  }
-
-  double _toDouble(Object? value, [double fallback = 0]) {
-    if (value is num) return value.toDouble();
-    return double.tryParse(value?.toString() ?? '') ?? fallback;
-  }
-
-  String _toString(Object? value, [String fallback = '']) {
-    return value?.toString() ?? fallback;
-  }
-
-  // --------------------------------------------------------------------- jobs
+  // -------------------------------------------------------------------- jobs
 
   Future<void> _editJob([JobEntity? job]) async {
-    // The popup receives a map so it remains compatible with the existing
-    // JobFormDialog implementation.
     final data = await JobFormDialog.show(
       context,
       job: job?.toMap(),
     );
 
-    if (data == null) return;
+    if (!mounted || data == null) return;
 
-    final map = Map<String, Object?>.from(data as Map);
+    if (data is! Map) {
+      toast(context, 'Invalid job details');
+      return;
+    }
+
+    final map = Map<String, Object?>.from(data);
 
     final entity = JobEntity(
       id: job?.id,
-      title: _toString(map['title']),
-      department: _toString(map['department']),
-      description: _toString(map['description']),
-      status: _toString(map['status'], job?.status ?? 'Open'),
+      title: _string(map['title']),
+      department: _string(map['department']),
+      description: _string(map['description']),
+      status: _string(map['status'], job?.status ?? 'Open'),
       approval: job?.approval ?? 'Pending',
       createdBy: job?.createdBy,
       createdOn: job?.createdOn,
@@ -161,14 +200,14 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
       if (job == null) {
         await _repo.createJob(entity);
 
-        if (mounted) {
-          toast(
-            context,
-            Session.isAdmin
-                ? 'Job published'
-                : 'Job sent to admin for approval',
-          );
-        }
+        if (!mounted) return;
+
+        toast(
+          context,
+          Session.isAdmin
+              ? 'Job published'
+              : 'Job sent to admin for approval',
+        );
       } else {
         await _repo.updateJob(
           job.id!,
@@ -176,9 +215,9 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
           currentApproval: job.approval,
         );
 
-        if (mounted &&
-            job.approval == 'Rejected' &&
-            !Session.isAdmin) {
+        if (!mounted) return;
+
+        if (job.approval == 'Rejected' && !Session.isAdmin) {
           toast(context, 'Job re-sent to admin for approval');
         }
       }
@@ -192,13 +231,16 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
   Future<void> _approve(JobEntity job) async {
     if (job.id == null) return;
 
-    await _repo.decideJob(job.id!, true, '');
+    try {
+      await _repo.decideJob(job.id!, true, '');
 
-    if (mounted) {
+      if (!mounted) return;
+
       toast(context, '"${job.title}" approved and published');
+      await _load();
+    } catch (e) {
+      if (mounted) toast(context, 'Could not approve job: $e');
     }
-
-    await _load();
   }
 
   Future<void> _reject(JobEntity job) async {
@@ -218,15 +260,19 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
       saveLabel: 'Reject',
     );
 
-    if (result == null) return;
+    if (!mounted || result == null) return;
 
-    await _repo.decideJob(
-      job.id!,
-      false,
-      result['reason'] as String,
-    );
+    try {
+      await _repo.decideJob(
+        job.id!,
+        false,
+        _string(result['reason']),
+      );
 
-    await _load();
+      await _load();
+    } catch (e) {
+      if (mounted) toast(context, 'Could not reject job: $e');
+    }
   }
 
   Future<void> _deleteJob(JobEntity job) async {
@@ -238,34 +284,43 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
       'This also deletes its candidates and interviews.',
     );
 
-    if (!ok) return;
+    if (!mounted || !ok) return;
 
-    await _repo.deleteJob(job.id!);
-    await _load();
+    try {
+      await _repo.deleteJob(job.id!);
+      await _load();
+    } catch (e) {
+      if (mounted) toast(context, 'Could not delete job: $e');
+    }
   }
 
   void _openCandidatesOf(JobEntity job) {
     setState(() {
       _pipeJob = job.id;
       _tab = 1;
+      _q = '';
     });
 
     _load();
   }
 
-  // ----------------------------------------------------------- small widgets
+  // --------------------------------------------------------------- UI helpers
 
   Widget _meta(IconData icon, String text) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 15, color: cs.outline),
-        const SizedBox(width: 4),
+        Icon(icon, size: 15, color: cs.primary),
+        const SizedBox(width: 5),
         Text(
           text,
-          style: Theme.of(context).textTheme.bodySmall,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: cs.onSurfaceVariant,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ],
     );
@@ -277,24 +332,29 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: 9,
-        vertical: 3,
+        vertical: 4,
       ),
       decoration: BoxDecoration(
-        color: cs.secondaryContainer.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(20),
+        color: cs.primaryContainer.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: cs.primary.withValues(alpha: 0.10),
+        ),
       ),
       child: Text(
         text,
         style: TextStyle(
           fontSize: 11.5,
-          color: cs.onSecondaryContainer,
+          color: cs.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );
   }
 
   Widget _emptyState(IconData icon, String message) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     return Panel(
       child: Center(
@@ -303,19 +363,25 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon,
-                size: 44,
-                color: cs.outlineVariant,
+              Container(
+                padding: const EdgeInsets.all(17),
+                decoration: BoxDecoration(
+                  color: cs.primaryContainer.withValues(alpha: 0.55),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  size: 36,
+                  color: cs.primary,
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: cs.onSurfaceVariant),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -330,6 +396,8 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
     required String Function(T) label,
     required ValueChanged<T> onSelected,
   }) {
+    final cs = Theme.of(context).colorScheme;
+
     return SizedBox(
       height: 42,
       child: ListView(
@@ -342,8 +410,74 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
                 label: Text(label(value)),
                 selected: selected == value,
                 onSelected: (_) => onSelected(value),
+                showCheckmark: false,
+                backgroundColor: cs.surface,
+                selectedColor: cs.primaryContainer,
+                side: BorderSide(
+                  color: selected == value
+                      ? cs.primary.withValues(alpha: 0.35)
+                      : cs.outlineVariant,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                labelStyle: TextStyle(
+                  color: selected == value
+                      ? cs.onPrimaryContainer
+                      : cs.onSurfaceVariant,
+                  fontWeight: selected == value
+                      ? FontWeight.w600
+                      : FontWeight.w500,
+                ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String title, {Widget? trailing}) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        if (trailing != null) trailing,
+      ],
+    );
+  }
+
+  Widget _notice(IconData icon, Color color, String text) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: color.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: color,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -357,174 +491,204 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
 
     final approval = job.approval;
     final status = _jobStatus(job);
-    final accent = _jobStatusColors[status] ?? cs.primary;
+    final accent = _statusColor(status);
 
     final canDelete = Session.isAdmin ||
         (approval != 'Approved' && job.createdBy == Session.empId);
 
-    final where = job.department;
+    final department = job.department;
 
     return Panel(
       padding: EdgeInsets.zero,
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(width: 5, color: accent),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            job.title,
-                            style: const TextStyle(
-                              fontSize: 16.5,
-                              fontWeight: FontWeight.w700,
+      child:
+      ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(width: 4, color: accent),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Title and status
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              job.title,
+                              style: const TextStyle(
+                                fontSize: 16.5,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        StatusChip(status),
-                      ],
-                    ),
-                    if (where.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        where,
-                        style: theme.textTheme.bodySmall,
+                          const SizedBox(width: 6),
+                          StatusChip(status),
+                        ],
                       ),
-                    ],
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 14,
-                      runSpacing: 6,
-                      children: [
-                        _meta(
-                          Icons.person_outline,
-                          '${job.cands ?? 0} candidates',
-                        ),
-                        _meta(
-                          Icons.approval_outlined,
-                          job.approval,
-                        ),
-                      ],
-                    ),
-                    if (job.description.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        job.description,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ],
-                    if (approval == 'Pending') ...[
-                      const SizedBox(height: 12),
-                      _notice(
-                        Icons.hourglass_top,
-                        Colors.orange,
-                        'Waiting for admin approval'
-                            '${(job.creatorName ?? '').isEmpty ? '' : ' • by ${job.creatorName}'}',
-                      ),
-                    ],
-                    if (approval == 'Rejected') ...[
-                      const SizedBox(height: 12),
-                      _notice(
-                        Icons.block,
-                        cs.error,
-                        'Rejected'
-                            '${(job.rejectReason ?? '').isEmpty ? '' : ': ${job.rejectReason}'}'
-                            '${Session.isAdmin ? '' : '\nEdit the job to send it for approval again.'}',
-                      ),
-                    ],
-                    const Divider(height: 24),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        if (Session.isAdmin && approval == 'Pending') ...[
-                          FilledButton.icon(
-                            onPressed: () => _approve(job),
-                            icon: const Icon(Icons.check, size: 18),
-                            label: const Text('Approve'),
+
+                      if (department.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          department,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
                           ),
-                          OutlinedButton.icon(
-                            onPressed: () => _reject(job),
-                            icon: const Icon(Icons.close, size: 18),
-                            label: const Text('Reject'),
+                        ),
+                      ],
+
+                      const SizedBox(height: 9),
+
+                      // Compact metadata
+                      Wrap(
+                        spacing: 14,
+                        runSpacing: 6,
+                        children: [
+                          _meta(
+                            Icons.person_outline,
+                            '${job.cands ?? 0} candidates',
+                          ),
+                          _meta(
+                            Icons.approval_outlined,
+                            job.approval,
                           ),
                         ],
-                        if (approval == 'Approved')
-                          TextButton.icon(
-                            onPressed: () => _openCandidatesOf(job),
-                            icon: const Icon(
-                              Icons.people_alt_outlined,
-                              size: 18,
-                            ),
-                            label: const Text('Candidates'),
+                      ),
+
+                      if (job.description.isNotEmpty) ...[
+                        const SizedBox(height: 7),
+                        Text(
+                          job.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            height: 1.35,
+                            color: cs.onSurfaceVariant,
                           ),
-                        TextButton.icon(
-                          onPressed: () => _editJob(job),
-                          icon: const Icon(
-                            Icons.edit_outlined,
-                            size: 18,
-                          ),
-                          label: const Text('Edit'),
                         ),
-                        if (canDelete)
-                          TextButton.icon(
-                            onPressed: () => _deleteJob(job),
-                            style: TextButton.styleFrom(
-                              foregroundColor: cs.error,
-                            ),
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              size: 18,
-                            ),
-                            label: const Text('Delete'),
-                          ),
                       ],
-                    ),
-                  ],
+
+                      if (approval == 'Pending') ...[
+                        const SizedBox(height: 8),
+                        _notice(
+                          Icons.hourglass_top,
+                          Colors.orange,
+                          'Waiting for admin approval'
+                              '${(job.creatorName ?? '').isEmpty ? '' : ' • by ${job.creatorName}'}',
+                        ),
+                      ],
+
+                      if (approval == 'Rejected') ...[
+                        const SizedBox(height: 8),
+                        _notice(
+                          Icons.block,
+                          cs.error,
+                          'Rejected'
+                              '${(job.rejectReason ?? '').isEmpty ? '' : ': ${job.rejectReason}'}'
+                              '${Session.isAdmin ? '' : '\nEdit the job to send it for approval again.'}',
+                        ),
+                      ],
+
+                      const SizedBox(height: 9),
+
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: cs.outlineVariant.withValues(alpha: 0.45),
+                      ),
+
+                      const SizedBox(height: 5),
+
+                      // Action buttons
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        alignment: WrapAlignment.end,
+                        children: [
+                          if (Session.isAdmin && approval == 'Pending') ...[
+                            FilledButton.icon(
+                              onPressed: () => _approve(job),
+                              icon: const Icon(Icons.check, size: 17),
+                              label: const Text('Approve'),
+                              style: FilledButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: () => _reject(job),
+                              icon: const Icon(Icons.close, size: 17),
+                              label: const Text('Reject'),
+                              style: OutlinedButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                            ),
+                          ],
+
+                          if (approval == 'Approved')
+                            TextButton.icon(
+                              onPressed: () => _openCandidatesOf(job),
+                              icon: const Icon(
+                                Icons.people_alt_outlined,
+                                size: 17,
+                              ),
+                              label: const Text('Candidates'),
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+
+                          TextButton.icon(
+                            onPressed: () => _editJob(job),
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              size: 17,
+                            ),
+                            label: const Text('Edit'),
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+
+                          if (canDelete)
+                            TextButton.icon(
+                              onPressed: () => _deleteJob(job),
+                              style: TextButton.styleFrom(
+                                foregroundColor: cs.error,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                size: 17,
+                              ),
+                              label: const Text('Delete'),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _notice(IconData icon, Color color, String text) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: color,
-                fontSize: 12.5,
-              ),
-            ),
+            ],
           ),
-        ],
-      ),
+        ),
+      )
+      ,
     );
   }
 
@@ -541,15 +705,12 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
     int count(String filter) {
       if (filter == 'All') return _jobs.length;
 
-      return _jobs
-          .where((job) => _jobStatus(job) == filter)
-          .length;
+      return _jobs.where((job) => _jobStatus(job) == filter).length;
     }
 
     final list = _jobs
         .where(
-          (job) =>
-      _jobFilter == 'All' || _jobStatus(job) == _jobFilter,
+          (job) => _jobFilter == 'All' || _jobStatus(job) == _jobFilter,
     )
         .toList();
 
@@ -565,9 +726,16 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.approval_outlined,
-                    color: Colors.orange,
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: const Icon(
+                      Icons.approval_outlined,
+                      color: Colors.orange,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -577,9 +745,7 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
                   ),
                   TextButton(
                     onPressed: () {
-                      setState(() {
-                        _jobFilter = 'Pending approval';
-                      });
+                      setState(() => _jobFilter = 'Pending approval');
                     },
                     child: const Text('Review'),
                   ),
@@ -592,9 +758,7 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
           selected: _jobFilter,
           label: (filter) => '$filter (${count(filter)})',
           onSelected: (filter) {
-            setState(() {
-              _jobFilter = filter;
-            });
+            setState(() => _jobFilter = filter);
           },
         ),
         const SizedBox(height: 8),
@@ -611,8 +775,7 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
                   .clamp(1, 4)
                   .toInt();
 
-              final width = (constraints.maxWidth -
-                  16 * (cols - 1)) /
+              final width = (constraints.maxWidth - 16 * (cols - 1)) /
                   cols;
 
               return SingleChildScrollView(
@@ -637,15 +800,6 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
 
   // -------------------------------------------------------------- candidates
 
-  Map<String, Object?> _candidateDialogMap(CandidateEntity candidate) {
-    return {
-      ...candidate.toMap(),
-      'job_title': candidate.jobTitle,
-      'job_department': candidate.jobDepartment,
-      'next_interview': candidate.nextInterview,
-    };
-  }
-
   Future<void> _editCandidate([CandidateEntity? candidate]) async {
     final approvedJobs = _jobs
         .where((job) => job.approval == 'Approved')
@@ -666,23 +820,23 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
       initialJobId: candidate?.jobId ?? _pipeJob,
     );
 
-    if (result == null) return;
+    if (!mounted || result == null) return;
 
     final now = ymd(DateTime.now());
 
     final entity = CandidateEntity(
       id: candidate?.id,
-      jobId: _toInt(result['job']),
-      name: _toString(result['name']),
-      email: _toString(result['email']),
-      phone: _toString(result['phone']),
-      source: _toString(result['source']),
-      experienceYears: _toDouble(result['experience_years']),
-      currentCompany: _toString(result['current_company']),
-      expectedSalary: _toDouble(result['expected_salary']),
-      rating: _toInt(result['rating']),
-      stage: _toString(result['stage'], 'Applied'),
-      notes: _toString(result['notes']),
+      jobId: _int(result['job']),
+      name: _string(result['name']),
+      email: _string(result['email']),
+      phone: _string(result['phone']),
+      source: _string(result['source']),
+      experienceYears: _double(result['experience_years']),
+      currentCompany: _string(result['current_company']),
+      expectedSalary: _double(result['expected_salary']),
+      rating: _int(result['rating']),
+      stage: _string(result['stage'], 'Applied'),
+      notes: _string(result['notes']),
       appliedOn: candidate?.appliedOn ?? now,
       resumePath: candidate?.resumePath,
       convertedEmployeeId: candidate?.convertedEmployeeId,
@@ -700,11 +854,10 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
       await _repo.saveCandidate(entity, id: candidate?.id);
       await _load();
     } catch (e) {
-      if (mounted) {
-        toast(context, 'Could not save candidate: $e');
-      }
+      if (mounted) toast(context, 'Could not save candidate: $e');
     }
   }
+
   Future<void> _deleteCandidate(CandidateEntity candidate) async {
     if (candidate.id == null) return;
 
@@ -714,10 +867,14 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
       '${candidate.name} and their interviews will be removed.',
     );
 
-    if (!ok) return;
+    if (!mounted || !ok) return;
 
-    await _repo.deleteCandidate(candidate.id!);
-    await _load();
+    try {
+      await _repo.deleteCandidate(candidate.id!);
+      await _load();
+    } catch (e) {
+      if (mounted) toast(context, 'Could not delete candidate: $e');
+    }
   }
 
   Future<void> _attachResume(CandidateEntity candidate) async {
@@ -725,21 +882,24 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
 
     try {
       final pick = await FilePicker.platform.pickFiles();
-      final path = pick?.files.single.path;
 
-      if (path == null) return;
+      if (!mounted || pick == null || pick.files.isEmpty) return;
+
+      final path = pick.files.single.path;
+
+      if (path == null || path.isEmpty) {
+        toast(context, 'Could not access the selected file');
+        return;
+      }
 
       await _repo.attachResume(candidate.id!, path);
 
-      if (mounted) {
-        toast(context, 'Resume attached');
-      }
+      if (!mounted) return;
 
+      toast(context, 'Resume attached');
       await _load();
     } catch (e) {
-      if (mounted) {
-        toast(context, 'Could not attach resume: $e');
-      }
+      if (mounted) toast(context, 'Could not attach resume: $e');
     }
   }
 
@@ -760,60 +920,69 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
       existing: employee,
     );
 
-    if (id == null) return;
+    if (!mounted || id == null) return;
 
-    await _repo.markConverted(candidate.id!, id);
+    try {
+      await _repo.markConverted(candidate.id!, id);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    toast(context, 'Employee created from ${candidate.name}');
-
-    await _load();
+      toast(context, 'Employee created from ${candidate.name}');
+      await _load();
+    } catch (e) {
+      if (mounted) toast(context, 'Could not convert candidate: $e');
+    }
   }
+
   Future<void> _details(CandidateEntity candidate) async {
     if (candidate.id == null) return;
 
-    final interviews =
-    await _repo.candidateInterviews(candidate.id!);
+    try {
+      final interviews = await _repo.candidateInterviews(candidate.id!);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    final action = await CandidateDetailsDialog.show(
-      context,
-      candidate: candidate,
-      interviews: interviews,
-    );
+      final action = await CandidateDetailsDialog.show(
+        context,
+        candidate: candidate,
+        interviews: interviews,
+      );
 
-    if (action == null) return;
+      if (!mounted || action == null) return;
 
-    switch (action) {
-      case CandidateAction.edit:
-        await _editCandidate(candidate);
-        break;
+      switch (action) {
+        case CandidateAction.edit:
+          await _editCandidate(candidate);
+          break;
 
-      case CandidateAction.openResume:
-      // Open the stored resume file here if you add a file-opening package.
-        break;
+        case CandidateAction.openResume:
+        // Add a file-opening package here when resume preview is required.
+          break;
 
-      case CandidateAction.attachResume:
-        await _attachResume(candidate);
-        break;
+        case CandidateAction.attachResume:
+          await _attachResume(candidate);
+          break;
 
-      case CandidateAction.scheduleInterview:
-        await _scheduleInterview(
-          candidate.id!,
-          candidate.name,
-        );
-        break;
+        case CandidateAction.scheduleInterview:
+          await _scheduleInterview(
+            candidate.id!,
+            candidate.name,
+          );
+          break;
 
-      case CandidateAction.convert:
-        await _convert(candidate);
-        break;
+        case CandidateAction.convert:
+          await _convert(candidate);
+          break;
+      }
+    } catch (e) {
+      if (mounted) toast(context, 'Could not open candidate details: $e');
     }
   }
 
   Widget _candCard(CandidateEntity candidate) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     final next = DateTime.tryParse(candidate.nextInterview ?? '');
     final rating = candidate.rating.clamp(0, 5);
 
@@ -824,7 +993,9 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: cs.outlineVariant),
+          side: BorderSide(
+            color: cs.outlineVariant.withValues(alpha: 0.75),
+          ),
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -872,7 +1043,9 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
                     ),
                     child: Text(
                       candidate.jobTitle!,
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 if (rating > 0)
@@ -944,21 +1117,25 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
       onSelected: (value) async {
         if (candidate.id == null) return;
 
-        if (value.startsWith('stage:')) {
-          await _repo.setStage(
-            candidate.id!,
-            value.substring(6),
-          );
-          await _load();
-        } else if (value == 'edit') {
-          await _editCandidate(candidate);
-        } else if (value == 'interview') {
-          await _scheduleInterview(
-            candidate.id!,
-            candidate.name,
-          );
-        } else if (value == 'delete') {
-          await _deleteCandidate(candidate);
+        try {
+          if (value.startsWith('stage:')) {
+            await _repo.setStage(
+              candidate.id!,
+              value.substring(6),
+            );
+            await _load();
+          } else if (value == 'edit') {
+            await _editCandidate(candidate);
+          } else if (value == 'interview') {
+            await _scheduleInterview(
+              candidate.id!,
+              candidate.name,
+            );
+          } else if (value == 'delete') {
+            await _deleteCandidate(candidate);
+          }
+        } catch (e) {
+          if (mounted) toast(context, 'Could not update candidate: $e');
         }
       },
       itemBuilder: (_) => <PopupMenuEntry<String>>[
@@ -985,8 +1162,11 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
     );
   }
 
+  // ------------------------------------------------------------ pipeline board
+
   Widget _stageColumn(String stage) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     final items = _cands
         .where((candidate) => candidate.stage == stage)
@@ -1000,65 +1180,82 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
         width: 280,
         child: Panel(
           padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.10),
-                  border: Border(
-                    bottom: BorderSide(
-                      color: color,
-                      width: 2.5,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.10),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: color.withValues(alpha: 0.75),
+                        width: 2.5,
+                      ),
                     ),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        stage,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
                         ),
                       ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: cs.surface,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${items.length}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          stage,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: items.isEmpty
-                    ? Center(
-                  child: Text(
-                    'No candidates',
-                    style: Theme.of(context).textTheme.bodySmall,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: cs.surface,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: cs.outlineVariant,
+                          ),
+                        ),
+                        child: Text(
+                          '${items.length}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                )
-                    : ListView(
-                  padding: const EdgeInsets.all(10),
-                  children: [
-                    for (final candidate in items)
-                      _candCard(candidate),
-                  ],
                 ),
-              ),
-            ],
+                Expanded(
+                  child: items.isEmpty
+                      ? Center(
+                    child: Text(
+                      'No candidates',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  )
+                      : ListView(
+                    padding: const EdgeInsets.all(10),
+                    children: [
+                      for (final candidate in items)
+                        _candCard(candidate),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1073,6 +1270,8 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
       ],
     );
   }
+
+  // ---------------------------------------------------------------- list view
 
   Widget _listView() {
     return TableCard(
@@ -1095,7 +1294,10 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
               DataCell(Text(candidate.jobTitle ?? '')),
               DataCell(
                 DropdownButton<String>(
-                  value: candidate.stage,
+                  value: kStages.contains(candidate.stage)
+                      ? candidate.stage
+                      : null,
+                  hint: Text(candidate.stage),
                   underline: const SizedBox.shrink(),
                   items: [
                     for (final stage in kStages)
@@ -1105,10 +1307,20 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
                       ),
                   ],
                   onChanged: (value) async {
-                    if (value == null || candidate.id == null) return;
+                    if (value == null ||
+                        candidate.id == null ||
+                        value == candidate.stage) {
+                      return;
+                    }
 
-                    await _repo.setStage(candidate.id!, value);
-                    await _load();
+                    try {
+                      await _repo.setStage(candidate.id!, value);
+                      await _load();
+                    } catch (e) {
+                      if (mounted) {
+                        toast(context, 'Could not update stage: $e');
+                      }
+                    }
                   },
                 ),
               ),
@@ -1131,11 +1343,15 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
     );
   }
 
+  // ------------------------------------------------------------- pipeline tab
+
   Widget _pipelineTab() {
-    final approvedJobs =
-    _jobs.where((job) => job.approval == 'Approved').toList();
+    final approvedJobs = _jobs
+        .where((job) => job.approval == 'Approved')
+        .toList();
 
     final narrow = _narrow;
+    final cs = Theme.of(context).colorScheme;
 
     return Column(
       children: [
@@ -1149,10 +1365,31 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
               child: DropdownButtonFormField<int?>(
                 value: _pipeJob,
                 isExpanded: true,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Job',
                   isDense: true,
-                  border: OutlineInputBorder(),
+                  filled: true,
+                  fillColor: cs.surface,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: cs.outlineVariant,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: cs.primary,
+                      width: 1.3,
+                    ),
+                  ),
                 ),
                 items: [
                   const DropdownMenuItem<int?>(
@@ -1169,9 +1406,7 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
                     ),
                 ],
                 onChanged: (value) {
-                  setState(() {
-                    _pipeJob = value;
-                  });
+                  setState(() => _pipeJob = value);
                   _load();
                 },
               ),
@@ -1179,11 +1414,32 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
             SizedBox(
               width: narrow ? double.infinity : 240,
               child: TextField(
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Search candidates',
-                  prefixIcon: Icon(Icons.search),
+                  prefixIcon: const Icon(Icons.search),
                   isDense: true,
-                  border: OutlineInputBorder(),
+                  filled: true,
+                  fillColor: cs.surface,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: cs.outlineVariant,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: cs.primary,
+                      width: 1.3,
+                    ),
+                  ),
                 ),
                 onChanged: (value) {
                   _q = value.trim();
@@ -1211,16 +1467,21 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
               ],
               selected: {_board},
               onSelectionChanged: (selection) {
-                setState(() {
-                  _board = selection.first;
-                });
+                setState(() => _board = selection.first);
               },
             ),
           ],
         ),
         const SizedBox(height: 12),
         Expanded(
-          child: _board ? _boardView() : _listView(),
+          child: _cands.isEmpty
+              ? _emptyState(
+            Icons.people_outline,
+            'No candidates found.',
+          )
+              : _board
+              ? _boardView()
+              : _listView(),
         ),
       ],
     );
@@ -1233,98 +1494,109 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
       String candidateName, {
         InterviewEntity? existing,
       }) async {
-    final employees =
-    await EmployeesRepository().employees(activeOnly: true);
+    try {
+      final employees =
+      await EmployeesRepository().fetchEmployees(activeOnly: true);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    final dt = DateTime.tryParse(existing?.scheduledAt ?? '');
+      final dt = DateTime.tryParse(existing?.scheduledAt ?? '');
 
-    final result = await formDialog(
-      context,
-      existing == null
-          ? 'Schedule interview: $candidateName'
-          : 'Edit interview',
-      [
-        F(
-          'round',
-          'Round',
-          type: 'dropdown',
-          required: true,
-          options: opts(kRounds),
-          initial: existing?.round ?? kRounds.first,
-        ),
-        F(
-          'date',
-          'Date',
-          type: 'date',
-          required: true,
-          initial: dt == null ? null : ymd(dt),
-        ),
-        F(
-          'time',
-          'Time',
-          type: 'time',
-          required: true,
-          initial: dt == null
-              ? '10:00'
-              : DateFormat('HH:mm').format(dt),
-        ),
-        F(
-          'interviewer',
-          'Interviewer',
-          type: 'dropdown',
-          required: true,
-          options: {
-            for (final employee in employees)
-              '${employee.id}': employee.name,
-          },
-          initial: existing?.interviewerId.toString(),
-        ),
-        F(
-          'feedback',
-          'Feedback',
-          type: 'multiline',
-          initial: existing?.feedback,
-        ),
-      ],
-      saveLabel: existing == null ? 'Schedule' : 'Save',
-    );
+      final result = await formDialog(
+        context,
+        existing == null
+            ? 'Schedule interview: $candidateName'
+            : 'Edit interview',
+        [
+          F(
+            'round',
+            'Round',
+            type: 'dropdown',
+            required: true,
+            options: opts(kRounds),
+            initial: existing?.round ?? kRounds.first,
+          ),
+          F(
+            'date',
+            'Date',
+            type: 'date',
+            required: true,
+            initial: dt == null ? null : ymd(dt),
+          ),
+          F(
+            'time',
+            'Time',
+            type: 'time',
+            required: true,
+            initial: dt == null
+                ? '10:00'
+                : DateFormat('HH:mm').format(dt),
+          ),
+          F(
+            'interviewer',
+            'Interviewer',
+            type: 'dropdown',
+            required: true,
+            options: {
+              for (final employee in employees)
+                '${employee.id}': employee.name,
+            },
+            initial: existing?.interviewerId.toString(),
+          ),
+          F(
+            'feedback',
+            'Feedback',
+            type: 'multiline',
+            initial: existing?.feedback,
+          ),
+        ],
+        saveLabel: existing == null ? 'Schedule' : 'Save',
+      );
 
-    if (result == null) return;
+      if (!mounted || result == null) return;
 
-    final interviewerId = int.tryParse(
-      '${result['interviewer'] ?? ''}',
-    );
+      final interviewerId = int.tryParse(
+        '${result['interviewer'] ?? ''}',
+      );
 
-    if (interviewerId == null) {
-      toast(context, 'Please select an interviewer');
-      return;
-    }
+      if (interviewerId == null) {
+        toast(context, 'Please select an interviewer');
+        return;
+      }
 
-    final entity = InterviewEntity(
-      id: existing?.id,
-      candidateId: candidateId,
-      interviewerId: interviewerId,
-      round: _toString(result['round']),
-      scheduledAt: '${result['date']}T${result['time']}:00',
-      result: existing?.result ?? 'Scheduled',
-      feedback: _toString(result['feedback']),
-      candName: existing?.candName ?? candidateName,
-      jobTitle: existing?.jobTitle,
-      interviewerName: existing?.interviewerName,
-    );
+      final date = _string(result['date']);
+      final time = _string(result['time']);
 
-    await _repo.saveInterview(
-      entity,
-      id: existing?.id,
-    );
+      if (date.isEmpty || time.isEmpty) {
+        toast(context, 'Please select interview date and time');
+        return;
+      }
 
-    if (mounted) {
+      final entity = InterviewEntity(
+        id: existing?.id,
+        candidateId: candidateId,
+        interviewerId: interviewerId,
+        round: _string(result['round']),
+        scheduledAt: '${date}T$time:00',
+        result: existing?.result ?? 'Scheduled',
+        feedback: _string(result['feedback']),
+        candName: existing?.candName ?? candidateName,
+        jobTitle: existing?.jobTitle,
+        interviewerName: existing?.interviewerName,
+      );
+
+      await _repo.saveInterview(
+        entity,
+        id: existing?.id,
+      );
+
+      if (!mounted) return;
+
       toast(context, 'Interview saved');
+      await _load();
+    } catch (e) {
+      if (mounted) toast(context, 'Could not save interview: $e');
     }
-
-    await _load();
   }
 
   Future<void> _setResult(InterviewEntity interview) async {
@@ -1351,19 +1623,43 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
       ],
     );
 
-    if (result == null) return;
+    if (!mounted || result == null) return;
 
-    await _repo.setInterviewResult(
-      interview.id!,
-      result['result'] as String,
-      result['feedback'] as String,
+    try {
+      await _repo.setInterviewResult(
+        interview.id!,
+        _string(result['result']),
+        _string(result['feedback']),
+      );
+
+      await _load();
+    } catch (e) {
+      if (mounted) toast(context, 'Could not update interview: $e');
+    }
+  }
+
+  Future<void> _deleteInterview(InterviewEntity interview) async {
+    if (interview.id == null) return;
+
+    final ok = await confirm(
+      context,
+      'Delete interview?',
+      'This interview will be permanently removed.',
     );
 
-    await _load();
+    if (!mounted || !ok) return;
+
+    try {
+      await _repo.deleteInterview(interview.id!);
+      await _load();
+    } catch (e) {
+      if (mounted) toast(context, 'Could not delete interview: $e');
+    }
   }
 
   Widget _intCard(InterviewEntity interview) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     final dt = DateTime.tryParse(interview.scheduledAt);
     final isToday = dt != null && ymd(dt) == ymd(today());
@@ -1390,16 +1686,20 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
                   ),
                   Text(
                     interview.jobTitle ?? '',
-                    style: theme.textTheme.bodySmall,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  Text([
-                    interview.round,
-                    if (dt != null)
-                      DateFormat('hh:mm a').format(dt),
-                    if ((interview.interviewerName ?? '').isNotEmpty)
-                      'with ${interview.interviewerName}',
-                  ].where((value) => value.isNotEmpty).join('  •  ')),
+                  Text(
+                    [
+                      interview.round,
+                      if (dt != null)
+                        DateFormat('hh:mm a').format(dt),
+                      if ((interview.interviewerName ?? '').isNotEmpty)
+                        'with ${interview.interviewerName}',
+                    ].where((value) => value.isNotEmpty).join('  •  '),
+                  ),
                   if (interview.feedback.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
@@ -1428,10 +1728,7 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
                         existing: interview,
                       );
                     } else if (value == 'delete') {
-                      if (interview.id == null) return;
-
-                      await _repo.deleteInterview(interview.id!);
-                      await _load();
+                      await _deleteInterview(interview);
                     }
                   },
                   itemBuilder: (_) => const [
@@ -1486,9 +1783,7 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
             selected: _intFilter,
             label: (filter) => filter,
             onSelected: (filter) {
-              setState(() {
-                _intFilter = filter;
-              });
+              setState(() => _intFilter = filter);
             },
           ),
         ),
@@ -1510,7 +1805,7 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
     );
   }
 
-  // -------------------------------------------------------------------- build
+  // ---------------------------------------------------------------- dashboard
 
   Widget _statsRow() {
     final items = [
@@ -1547,7 +1842,7 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
     ];
 
     return SizedBox(
-      height: 84,
+      height: 70,
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
@@ -1609,6 +1904,8 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
     }
   }
 
+  // -------------------------------------------------------------------- build
+
   @override
   Widget build(BuildContext context) {
     const tabs = [
@@ -1616,6 +1913,8 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
       'Pipeline',
       'Interviews',
     ];
+
+    final cs = Theme.of(context).colorScheme;
 
     return PageBox(
       child: Column(
@@ -1631,9 +1930,7 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
                   selected: _tab,
                   label: (index) => tabs[index],
                   onSelected: (index) {
-                    setState(() {
-                      _tab = index;
-                    });
+                    setState(() => _tab = index);
                   },
                 ),
               ),
@@ -1643,11 +1940,29 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: switch (_tab) {
-              0 => _jobsTab(),
-              1 => _pipelineTab(),
-              _ => _interviewsTab(),
-            },
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: switch (_tab) {
+                    0 => _jobsTab(),
+                    1 => _pipelineTab(),
+                    _ => _interviewsTab(),
+                  },
+                ),
+                if (_isLoading)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: LinearProgressIndicator(
+                      minHeight: 2,
+                      color: cs.primary,
+                      backgroundColor:
+                      cs.primary.withValues(alpha: 0.08),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
       ),

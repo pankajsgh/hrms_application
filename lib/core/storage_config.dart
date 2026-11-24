@@ -6,7 +6,7 @@ enum StorageMode {
 
 class StorageConfig {
   static StorageMode mode = StorageMode.localOnly;
-  static String apiUrl = 'https://api.example.com/v1'; // configurable base url for Dio API
+  static String apiUrl = 'http://127.0.0.1:8080/api'; // configurable base url for Dio API
 
   static void setMode(StorageMode newMode) {
     mode = newMode;

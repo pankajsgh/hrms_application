@@ -6,10 +6,26 @@ import 'features/auth/presentation/login_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Db.init();
-  // FillDemoData.seedDemoData();
-  // await Db.clearAllData();
-  // await Db.resetDatabase();
+
+  debugPrint('STEP 1: Flutter initialized');
+
+  try {
+    debugPrint('STEP 2: Database initialization started');
+
+    await Db.init();
+    // FillDemoData.seedDemoData();
+    // await Db.clearAllData();
+    // await Db.resetDatabase();
+
+    debugPrint('STEP 3: Database initialized');
+
+  } catch (e, stack) {
+    debugPrint('DATABASE ERROR: $e');
+    debugPrintStack(stackTrace: stack);
+  }
+
+  debugPrint('STEP 4: Running app');
+
   runApp(const HrmsApp());
 }
 

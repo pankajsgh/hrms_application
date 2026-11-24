@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:hrms/comman_widget/customer_dropdown.dart';
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/ui.dart';
+import 'package:hrms/data/global_data.dart';
 import 'package:hrms/domain/entities/recruitment_entity.dart';
 
 class CandidateFormDialog extends StatefulWidget {

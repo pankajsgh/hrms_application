@@ -1,4 +1,5 @@
 
+import 'package:dio/dio.dart';
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/dio_client.dart';
 
@@ -22,17 +23,51 @@ class RemoteDatasource {
     }
   }
 
-  Future<int> saveData(String endpoint, Map<String, String> query, Map<String, Object?> data) async {
+
+  Future<int> saveData(
+      String endpoint,
+      Map<String, String> query,
+      Map<String, Object?> data,
+      ) async {
     try {
-      final response = await _dioClient.post('/$endpoint', queryParameters: query, data: data);
-      if (response.data is Map && response.data['id'] != null) {
-        return (response.data['id'] as num).toInt();
+      var response;
+      if (query.isEmpty) {
+        response = await _dioClient.post(
+          '/$endpoint',
+          queryParameters: query,
+          data: data,
+        );
+      } else {
+
+        final id =query['id'] ?? '';
+
+        response = await _dioClient.put(
+          '/$endpoint/$id',
+          data: data,
+        );
       }
-      return 1;
+
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = response.data;
+
+        if (responseData is Map && responseData['id'] != null) {
+          return (responseData['id'] as num).toInt();
+        }
+
+        return 1;
+      }
+
+      return -1;
+    } on DioException catch (e) {
+      print('API Error 11: ${e.response?.data ?? e.message}');
+      return -1;
     } catch (e) {
+      print('Save Error: $e');
       return -1;
     }
   }
+
 
   Future<int> deleteData(String endpoint, Map<String, String> query) async {
     try {

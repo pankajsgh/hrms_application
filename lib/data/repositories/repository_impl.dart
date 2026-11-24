@@ -34,6 +34,7 @@ class Repo {
       Map<String, String> query,
       Future<List<Rec>> Function() localQuery,
       ) async {
+
     switch (StorageConfig.mode) {
       case StorageMode.localOnly:
         return await _local.fetchData(localQuery);

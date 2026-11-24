@@ -1,3 +1,4 @@
+
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/session.dart';
 import 'package:hrms/data/datasources/local_datasource.dart';
@@ -19,7 +20,9 @@ class DashboardRepository {
 
     final today = ymd(DateTime.now());
 
-    final ids = (!Session.isAdmin && !Session.isHr && Session.isLead)
+    final ids = (!Session.isAdmin &&
+        !Session.isHr &&
+        Session.isLead)
         ? await scopeIds()
         : null;
 
@@ -33,8 +36,9 @@ class DashboardRepository {
       };
     }
 
-    final employeeFilter =
-    ids == null ? '' : ' AND employee_id IN ${LocalDatasource.dbIn(ids)}';
+    final employeeFilter = ids == null
+        ? ''
+        : ' AND employee_id IN ${LocalDatasource.dbIn(ids)}';
 
     final employees = ids == null
         ? await LocalDatasource.dbCount(
@@ -42,12 +46,17 @@ class DashboardRepository {
     )
         : await LocalDatasource.dbCount(
       "SELECT COUNT(*) FROM employees "
-          "WHERE status = 'Active' AND id IN ${LocalDatasource.dbIn(ids)}",
+          "WHERE status = 'Active' "
+          "AND id IN ${LocalDatasource.dbIn(ids)}",
     );
 
     final attendanceEmployeeFilter = ids == null
         ? ''
         : ' AND a.employee_id IN ${LocalDatasource.dbIn(ids)}';
+
+    // ------------------------------------------------------------
+    // ATTENDANCE
+    // ------------------------------------------------------------
 
     final present = await LocalDatasource.dbCount(
       "SELECT COUNT(DISTINCT a.employee_id) "
@@ -82,6 +91,10 @@ class DashboardRepository {
       [today],
     );
 
+    // ------------------------------------------------------------
+    // PENDING LEAVES
+    // ------------------------------------------------------------
+
     final ownLeaveFilter =
     (!Session.isAdmin && Session.empId != null)
         ? ' AND employee_id != ${Session.empId}'
@@ -101,6 +114,10 @@ class DashboardRepository {
       'absent': absent,
       'pending': pending,
     };
+
+    // ------------------------------------------------------------
+    // RECRUITMENT DASHBOARD
+    // ------------------------------------------------------------
 
     if (Session.isAdmin || Session.isHr) {
       final jobsListed = await LocalDatasource.dbCount(
@@ -124,14 +141,27 @@ class DashboardRepository {
         'SELECT COUNT(*) FROM candidates',
       );
 
+      // Only candidates currently in Interview stage.
+      // Applied, Screening, Shortlisted, Offered, Hired and Rejected
+      // candidates are excluded.
+
       final interviewsToday = await LocalDatasource.dbCount(
-        "SELECT COUNT(*) FROM interviews "
-            "WHERE date(scheduled_at) = ?",
+        "SELECT COUNT(*) "
+            "FROM interviews i "
+            "INNER JOIN candidates c ON c.id = i.candidate_id "
+            "WHERE date(i.scheduled_at) = ? "
+            "AND LOWER(TRIM(c.stage)) = 'interview'",
         [today],
       );
 
+      // Upcoming scheduled interviews for candidates in Interview stage.
       final interviews = await LocalDatasource.dbCount(
-        "SELECT COUNT(*) FROM interviews WHERE result = 'Scheduled' AND scheduled_at >= ?",
+        "SELECT COUNT(*) "
+            "FROM interviews i "
+            "INNER JOIN candidates c ON c.id = i.candidate_id "
+            "WHERE i.result = 'Scheduled' "
+            "AND i.scheduled_at >= ? "
+            "AND LOWER(TRIM(c.stage)) = 'interview'",
         [today],
       );
 
@@ -144,6 +174,10 @@ class DashboardRepository {
         'interviewsToday': interviewsToday,
         'interviews': interviews,
       });
+
+      // ------------------------------------------------------------
+      // CANDIDATE PIPELINE
+      // ------------------------------------------------------------
 
       const stages = [
         'Applied',
@@ -189,7 +223,10 @@ class DashboardRepository {
     return LeaveRepository().balances(empId, year);
   }
 
-  Future<List<LeaveBalanceEntity>> fetchBalances(int empId, int year) {
+  Future<List<LeaveBalanceEntity>> fetchBalances(
+      int empId,
+      int year,
+      ) {
     return balances(empId, year);
   }
 
@@ -201,7 +238,9 @@ class DashboardRepository {
     return upcomingHolidays(limit);
   }
 
-  Future<List<SpecialDayEntity>> upcomingSpecialDays([int days = 30]) {
+  Future<List<SpecialDayEntity>> upcomingSpecialDays([
+    int days = 30,
+  ]) {
     return SpecialDaysRepository().upcomingSpecialDays(days: days);
   }
 

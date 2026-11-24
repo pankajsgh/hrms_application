@@ -20,6 +20,10 @@ import '../../special_days/presentation/special_days_page.dart';
 import '../../users/presentation/users_page.dart';
 import '../../leave/presentation/leave_page.dart';
 
+// -----------------------------------------------------------------------------
+// NAVIGATION MODEL
+// -----------------------------------------------------------------------------
+
 class _Nav {
   const _Nav(this.label, this.icon, this.build);
 
@@ -27,6 +31,10 @@ class _Nav {
   final IconData icon;
   final Widget Function() build;
 }
+
+// -----------------------------------------------------------------------------
+// SHELL
+// -----------------------------------------------------------------------------
 
 class Shell extends StatefulWidget {
   const Shell({super.key});
@@ -38,7 +46,13 @@ class Shell extends StatefulWidget {
 class _ShellState extends State<Shell> {
   int _index = 0;
 
-  // Build navigation according to the current user's permissions.
+  bool _sessionDialogShown = false;
+  bool _passwordDialogShown = false;
+
+  // ---------------------------------------------------------------------------
+  // NAVIGATION ITEMS
+  // ---------------------------------------------------------------------------
+
   List<_Nav> get _navs => [
     _Nav(
       'Dashboard',
@@ -112,17 +126,96 @@ class _ShellState extends State<Shell> {
       ),
   ];
 
+  // ---------------------------------------------------------------------------
+  // INITIALIZATION
+  // ---------------------------------------------------------------------------
+
   @override
   void initState() {
     super.initState();
 
-    if (Session.user?['must_change'] == 1) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _changePassword(forced: true);
-        }
-      });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      if (Session.user == null) {
+        _checkSession();
+        return;
+      }
+
+      _checkForcedPasswordChange();
+    });
+  }
+
+  void _checkForcedPasswordChange() {
+    if (!mounted || Session.user == null) return;
+
+    final mustChange = Session.user?['must_change'];
+
+    if (mustChange == 1 || mustChange == true || mustChange == '1') {
+      if (!_passwordDialogShown) {
+        _passwordDialogShown = true;
+
+        _changePassword(forced: true).whenComplete(() {
+          _passwordDialogShown = false;
+        });
+      }
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // SESSION VALIDATION
+  // ---------------------------------------------------------------------------
+
+  void _checkSession() {
+    if (!mounted || Session.user != null || _sessionDialogShown) {
+      return;
+    }
+
+    _sessionDialogShown = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        _sessionDialogShown = false;
+        return;
+      }
+
+      if (Session.user != null) {
+        _sessionDialogShown = false;
+        return;
+      }
+
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Session Expired'),
+            content: const Text(
+              'Your session is not available. Please login again.',
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () {
+                  Session.clear();
+
+                  Navigator.of(dialogContext).pop();
+
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (_) => const AuthFeaturePage(),
+                    ),
+                        (route) => false,
+                  );
+                },
+                child: const Text('Go to Login'),
+              ),
+            ],
+          );
+        },
+      ).whenComplete(() {
+        _sessionDialogShown = false;
+      });
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -130,26 +223,40 @@ class _ShellState extends State<Shell> {
   // ---------------------------------------------------------------------------
 
   Future<void> _changePassword({bool forced = false}) async {
-    while (true) {
-      if (!mounted) return;
+    if (Session.user == null) {
+      _checkSession();
+      return;
+    }
 
+    while (mounted) {
       final result = await formDialog(
         context,
-        forced
-            ? 'Set a new password to continue'
-            : 'Change password',
+        forced ? 'Set a new password to continue' : 'Change password',
         const [
-          F('pw', 'New password', type: 'password', required: true),
-          F('pw2', 'Confirm password', type: 'password', required: true),
+          F(
+            'pw',
+            'New password',
+            type: 'password',
+            required: true,
+          ),
+          F(
+            'pw2',
+            'Confirm password',
+            type: 'password',
+            required: true,
+          ),
         ],
         cancelable: !forced,
       );
 
-      if (result == null) return;
       if (!mounted) return;
 
-      final password = result['pw'] as String;
-      final confirmPassword = result['pw2'] as String;
+      if (result == null) {
+        return;
+      }
+
+      final password = result['pw']?.toString() ?? '';
+      final confirmPassword = result['pw2']?.toString() ?? '';
 
       if (password.length < 6) {
         toast(context, 'Password must be at least 6 characters');
@@ -161,20 +268,40 @@ class _ShellState extends State<Shell> {
         continue;
       }
 
+      final user = Session.user;
+
+      if (user == null) {
+        _checkSession();
+        return;
+      }
+
+      final rawId = user['id'];
+
+      if (rawId is! num && int.tryParse(rawId?.toString() ?? '') == null) {
+        toast(context, 'Invalid user session. Please login again.');
+        return;
+      }
+
+      final userId = rawId is num
+          ? rawId.toInt()
+          : int.parse(rawId.toString());
+
       try {
         await UsersRepository().setPassword(
-          (Session.user!['id'] as num).toInt(),
+          userId,
           password,
         );
 
-        Session.user!['must_change'] = 0;
+        if (!mounted) return;
 
-        if (mounted) {
-          toast(context, 'Password updated');
-        }
+        user['must_change'] = 0;
 
+        toast(context, 'Password updated');
         return;
-      } catch (e) {
+      } catch (e, stackTrace) {
+        debugPrint('CHANGE PASSWORD ERROR: $e');
+        debugPrintStack(stackTrace: stackTrace);
+
         if (mounted) {
           toast(context, 'Password update failed: $e');
         }
@@ -198,7 +325,7 @@ class _ShellState extends State<Shell> {
   }
 
   // ---------------------------------------------------------------------------
-  // ONLINE / OFFLINE
+  // ONLINE / OFFLINE TOGGLE
   // ---------------------------------------------------------------------------
 
   Widget _onlineOfflineToggle(ColorScheme cs) {
@@ -210,10 +337,18 @@ class _ShellState extends State<Shell> {
         setState(() {
           if (StorageConfig.mode == StorageMode.localOnly) {
             StorageConfig.setMode(StorageMode.apiOnly);
-            toast(context, 'Switched to Online (Dio API Mode)');
+
+            toast(
+              context,
+              'Switched to Online (Dio API Mode)',
+            );
           } else {
             StorageConfig.setMode(StorageMode.localOnly);
-            toast(context, 'Switched to Offline (Local SQLite Mode)');
+
+            toast(
+              context,
+              'Switched to Offline (Local SQLite Mode)',
+            );
           }
         });
       },
@@ -260,89 +395,100 @@ class _ShellState extends State<Shell> {
   // ---------------------------------------------------------------------------
 
   Future<void> _showStorageSettings() async {
+
+    if (Session.user == null) {
+      _checkSession();
+      return;
+    }
+
     StorageMode selectedMode = StorageConfig.mode;
 
-    await showDialog(
+    await showDialog<void>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setStateDialog) => AlertDialog(
-          title: const Text('Storage Mode Settings'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RadioListTile<StorageMode>(
-                title: const Text('Local Only (SQLite)'),
-                subtitle: const Text(
-                  'Save and fetch data locally on device',
-                ),
-                value: StorageMode.localOnly,
-                groupValue: selectedMode,
-                onChanged: (value) {
-                  if (value != null) {
-                    setStateDialog(() {
-                      selectedMode = value;
-                    });
-                  }
-                },
-              ),
-              RadioListTile<StorageMode>(
-                title: const Text('Dio API Only'),
-                subtitle: const Text(
-                  'Save and fetch data via remote Dio API',
-                ),
-                value: StorageMode.apiOnly,
-                groupValue: selectedMode,
-                onChanged: (value) {
-                  if (value != null) {
-                    setStateDialog(() {
-                      selectedMode = value;
-                    });
-                  }
-                },
-              ),
-              RadioListTile<StorageMode>(
-                title: const Text('Local & API (Sync)'),
-                subtitle: const Text(
-                  'Save locally and sync with Dio API',
-                ),
-                value: StorageMode.localAndApi,
-                groupValue: selectedMode,
-                onChanged: (value) {
-                  if (value != null) {
-                    setStateDialog(() {
-                      selectedMode = value;
-                    });
-                  }
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                StorageConfig.setMode(selectedMode);
-                Navigator.of(dialogContext).pop();
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Storage Mode Settings'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<StorageMode>(
+                    title: const Text('Local Only (SQLite)'),
+                    subtitle: const Text(
+                      'Save and fetch data locally on device',
+                    ),
+                    value: StorageMode.localOnly,
+                    groupValue: selectedMode,
+                    onChanged: (value) {
+                      if (value == null) return;
 
-                if (mounted) {
-                  toast(
-                    context,
-                    'Storage mode updated to ${selectedMode.name}',
-                  );
-                }
+                      setStateDialog(() {
+                        selectedMode = value;
+                      });
+                    },
+                  ),
+                  RadioListTile<StorageMode>(
+                    title: const Text('Dio API Only'),
+                    subtitle: const Text(
+                      'Save and fetch data via remote Dio API',
+                    ),
+                    value: StorageMode.apiOnly,
+                    groupValue: selectedMode,
+                    onChanged: (value) {
+                      if (value == null) return;
 
-                setState(() {});
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
+                      setStateDialog(() {
+                        selectedMode = value;
+                      });
+                    },
+                  ),
+                  RadioListTile<StorageMode>(
+                    title: const Text('Local & API (Sync)'),
+                    subtitle: const Text(
+                      'Save locally and sync with Dio API',
+                    ),
+                    value: StorageMode.localAndApi,
+                    groupValue: selectedMode,
+                    onChanged: (value) {
+                      if (value == null) return;
+
+                      setStateDialog(() {
+                        selectedMode = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    StorageConfig.setMode(selectedMode);
+
+                    Navigator.of(dialogContext).pop();
+
+                    if (mounted) {
+                      setState(() {});
+
+                      toast(
+                        context,
+                        'Storage mode updated to ${selectedMode.name}',
+                      );
+                    }
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -350,18 +496,23 @@ class _ShellState extends State<Shell> {
   // NAVIGATION TAP
   // ---------------------------------------------------------------------------
 
-  void _selectPage(int index, {bool drawer = false}) {
-    debugPrint('Selected page: ${_navs[index].label}');
+  void _selectPage(
+      int index, {
+        bool drawer = false,
+      }) {
+    final navs = _navs;
 
-    if (index < 0 || index >= _navs.length) return;
+    if (index < 0 || index >= navs.length) {
+      return;
+    }
 
-    debugPrint('Selected page: ${_navs[index].label}');
+    debugPrint('Selected page: ${navs[index].label}');
 
     setState(() {
       _index = index;
     });
 
-    if (drawer && Navigator.of(context).canPop()) {
+    if (drawer) {
       Navigator.of(context).pop();
     }
   }
@@ -375,13 +526,21 @@ class _ShellState extends State<Shell> {
       int index, {
         bool drawer = false,
       }) {
-    final nav = _navs[index];
+    final navs = _navs;
+
+    if (index < 0 || index >= navs.length) {
+      return const SizedBox.shrink();
+    }
+
+    final nav = navs[index];
     final selected = index == _index;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Material(
-        color: selected ? cs.primaryContainer : Colors.transparent,
+        color: selected
+            ? cs.primaryContainer
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         child: ListTile(
           dense: true,
@@ -419,6 +578,8 @@ class _ShellState extends State<Shell> {
       ColorScheme cs, {
         bool drawer = false,
       }) {
+    final navs = _navs;
+
     return Container(
       width: drawer ? null : 250,
       decoration: BoxDecoration(
@@ -427,7 +588,7 @@ class _ShellState extends State<Shell> {
             ? null
             : Border(
           right: BorderSide(
-            color: cs.outlineVariant.withOpacity(0.6),
+            color: cs.outlineVariant.withValues(alpha: 0.6),
           ),
         ),
       ),
@@ -485,7 +646,7 @@ class _ShellState extends State<Shell> {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               children: [
-                for (var i = 0; i < _navs.length; i++)
+                for (var i = 0; i < navs.length; i++)
                   _navTile(
                     cs,
                     i,
@@ -588,12 +749,31 @@ class _ShellState extends State<Shell> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    // Never display the Shell when there is no logged-in user.
+    if (Session.user == null) {
+      _checkSession();
 
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: SizedBox.expand(),
+      );
+    }
+
+    final cs = Theme.of(context).colorScheme;
     final navs = _navs;
 
+    // Handle accounts without any available navigation pages.
+    if (navs.isEmpty) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Text('No pages available for this account.'),
+        ),
+      );
+    }
+
     // Protect against an invalid index if permissions change.
-    if (_index >= navs.length) {
+    if (_index < 0 || _index >= navs.length) {
       _index = 0;
     }
 
@@ -604,7 +784,7 @@ class _ShellState extends State<Shell> {
 
     final wide = MediaQuery.of(context).size.width >= 800;
 
-    // KeyedSubtree recreates the selected page when the index changes.
+    // Recreate the selected page when the index changes.
     final page = KeyedSubtree(
       key: ValueKey(navs[_index].label),
       child: Theme(
@@ -613,6 +793,7 @@ class _ShellState extends State<Shell> {
       ),
     );
 
+    // Desktop / wide layout.
     if (wide) {
       return Scaffold(
         backgroundColor: Colors.white,
@@ -627,6 +808,7 @@ class _ShellState extends State<Shell> {
       );
     }
 
+    // Mobile / narrow layout.
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(

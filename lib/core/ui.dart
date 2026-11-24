@@ -136,7 +136,7 @@ class StatusChip extends StatelessWidget {
     if (text.isEmpty) return const SizedBox.shrink();
     final c = _color;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: c.withOpacity(0.13),
         borderRadius: BorderRadius.circular(20),
@@ -144,7 +144,7 @@ class StatusChip extends StatelessWidget {
       child: Text(text,
           style: TextStyle(
               color: Color.alphaBlend(Colors.black.withOpacity(0.25), c),
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600)),
     );
   }
@@ -167,15 +167,18 @@ class Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final wide = MediaQuery.of(context).size.width > 820;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(children: [
         Expanded(
-            child: Text(title,
+            child: wide? Text(title,
+                maxLines: 1,
                 style: Theme.of(context)
                     .textTheme
                     .headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w700))),
+                    ?.copyWith(fontWeight: FontWeight.w700)): SizedBox()
+        ),
         for (final a in actions) ...[const SizedBox(width: 8), a],
       ]),
     );
@@ -270,27 +273,30 @@ class StatCard extends StatelessWidget {
       width: MediaQuery.of(context).size.width < 800 ? 150 : 210,
       child: Panel(
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(children: [
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: color.withOpacity(0.14),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(icon, color: color, size: 26),
+              child: Icon(icon, color: color, size: 24),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(value,
                         style: Theme.of(context)
                             .textTheme
-                            .headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w600)),
+                            .titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w500)),
                     Text(label,
                         style: Theme.of(context).textTheme.bodySmall,
                         overflow: TextOverflow.ellipsis),

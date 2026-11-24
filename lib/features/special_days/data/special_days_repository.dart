@@ -1,79 +1,151 @@
+
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/db.dart';
 import 'package:hrms/core/session.dart';
 import 'package:hrms/data/repositories/repository_impl.dart';
 import 'package:hrms/domain/entities/employee_entity.dart';
 import 'package:hrms/domain/entities/special_day_entity.dart';
+
 import '../../employees/data/employees_repository.dart';
 
 class SpecialDaysRepository {
-  Future<List<SpecialDayEntity>> specialDays() async {
-    final raw = await Repo.queryOrLocal('special_days', {}, () => Db.db.rawQuery(
-        'SELECT s.*, e.name AS emp_name FROM special_days s '
-        'JOIN employees e ON e.id = s.employee_id '
-        'ORDER BY e.name COLLATE NOCASE, s.date'));
-    return raw.map((r) => SpecialDayEntity.fromMap(r)).toList();
+  Future<List<SpecialDayEntity>> fetchSpecialDays() async {
+    final rows = await Repo.queryOrLocal(
+      'special_days',
+      {},
+          () => Db.db.rawQuery(
+        'SELECT s.*, e.name AS emp_name '
+            'FROM special_days s '
+            'JOIN employees e ON e.id = s.employee_id '
+            'ORDER BY e.name COLLATE NOCASE, s.date',
+      ),
+    );
+
+    return rows.map((row) {
+      return SpecialDayEntity.fromMap(
+        Map<String, Object?>.from(row),
+      );
+    }).toList();
   }
 
-  Future<List<SpecialDayEntity>> fetchSpecialDays() => specialDays();
+  Future<void> saveSpecialDay(
+      Object data, {
+        int? id,
+      }) async {
+    final Map<String, Object?> map;
 
-  Future<void> saveSpecialDay(Object data, {int? id}) async {
-    final map = data is SpecialDayEntity ? data.toMap() : (data as Map<String, Object?>);
-    if (id == null) {
-      await Repo.saveData('special_days', {}, {
-        ...map,
-        'created_by': Session.empId,
-        'created_on': ymd(DateTime.now()),
-      });
+    if (data is SpecialDayEntity) {
+      map = data.toMap();
+    } else if (data is Map<String, Object?>) {
+      map = Map<String, Object?>.from(data);
     } else {
-      await Repo.saveData('special_days', {'id': '$id'}, map);
+      throw ArgumentError(
+        'Unsupported special day data: ${data.runtimeType}',
+      );
+    }
+
+    map.remove('emp_name');
+    map.remove('next');
+    map.remove('away');
+    map.remove('years');
+
+    if (id == null) {
+      map.remove('id');
+      map['created_by'] = Session.empId;
+      map['created_on'] = ymd(DateTime.now());
+
+      await Repo.saveData('special_days', {}, map);
+    } else {
+      map.remove('id');
+
+      await Repo.saveData(
+        'special_days',
+        {'id': '$id'},
+        map,
+      );
     }
   }
 
-  Future<void> deleteSpecialDay(int id) => Repo.deleteData('special_days', {'id': '$id'});
-
-  DateTime _occurrence(DateTime d, int year) {
-    final last = DateTime(year, d.month + 1, 0).day;
-    return DateTime(year, d.month, d.day > last ? last : d.day);
+  Future<void> deleteSpecialDay(int id) async {
+    await Repo.deleteData(
+      'special_days',
+      {'id': '$id'},
+    );
   }
 
-  Future<List<SpecialDayEntity>> upcomingSpecialDays({int days = 30}) async {
+  Future<List<EmployeeEntity>> fetchActiveEmployees() {
+    return EmployeesRepository().fetchEmployees(activeOnly: true);
+  }
+
+  Future<List<SpecialDayEntity>> upcomingSpecialDays({
+    int days = 30,
+  }) async {
     final rows = await Db.db.rawQuery(
-        'SELECT s.*, e.name AS emp_name FROM special_days s '
-        'JOIN employees e ON e.id = s.employee_id '
-        "WHERE e.status = 'Active'");
-    final t = today();
-    final tUtc = DateTime.utc(t.year, t.month, t.day);
-    final out = <SpecialDayEntity>[];
-    for (final r in rows) {
-      final orig = DateTime.tryParse(r.s('date'));
-      if (orig == null) continue;
+      'SELECT s.*, e.name AS emp_name '
+          'FROM special_days s '
+          'JOIN employees e ON e.id = s.employee_id',
+    );
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    final result = <SpecialDayEntity>[];
+
+    for (final row in rows) {
+      final original = DateTime.tryParse(
+        row['date']?.toString() ?? '',
+      );
+
+      if (original == null) continue;
+
+      final yearly = (row['yearly'] as num?)?.toInt() ?? 1;
+
       DateTime next;
-      if (r.i('yearly') == 1) {
-        next = _occurrence(orig, t.year);
-        if (next.isBefore(t)) next = _occurrence(orig, t.year + 1);
+
+      if (yearly == 1) {
+        next = _dateForYear(original, today.year);
+
+        if (next.isBefore(today)) {
+          next = _dateForYear(original, today.year + 1);
+        }
       } else {
-        next = DateTime(orig.year, orig.month, orig.day);
-        if (next.isBefore(t)) continue;
+        next = DateTime(
+          original.year,
+          original.month,
+          original.day,
+        );
+
+        if (next.isBefore(today)) continue;
       }
-      final away =
-          DateTime.utc(next.year, next.month, next.day).difference(tUtc).inDays;
+
+      final away = next.difference(today).inDays;
+
       if (away > days) continue;
-      final map = {
-        ...r,
-        'next': ymd(next),
-        'away': away,
-        'years': next.year - orig.year,
-      };
-      out.add(SpecialDayEntity.fromMap(map));
+
+      result.add(
+        SpecialDayEntity.fromMap({
+          ...Map<String, Object?>.from(row),
+          'next': ymd(next),
+          'away': away,
+          'years': next.year - original.year,
+        }),
+      );
     }
-    out.sort((a, b) => (a.away ?? 0).compareTo(b.away ?? 0));
-    return out;
+
+    result.sort(
+          (a, b) => (a.away ?? 0).compareTo(b.away ?? 0),
+    );
+
+    return result;
   }
 
-  Future<List<SpecialDayEntity>> fetchUpcomingSpecialDays(int days) => upcomingSpecialDays(days: days);
+  DateTime _dateForYear(DateTime date, int year) {
+    final lastDay = DateTime(year, date.month + 1, 0).day;
 
-  Future<List<EmployeeEntity>> activeEmployees() => EmployeesRepository().employees(activeOnly: true);
-
-  Future<List<EmployeeEntity>> fetchActiveEmployees() => activeEmployees();
+    return DateTime(
+      year,
+      date.month,
+      date.day > lastDay ? lastDay : date.day,
+    );
+  }
 }

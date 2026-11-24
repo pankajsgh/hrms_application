@@ -31,7 +31,7 @@ class RecruitmentController extends ChangeNotifier {
     candidates = await _repository.fetchCandidates(jobId: pipeJob, q: searchQuery);
     interviews = await _repository.fetchInterviews();
     stats = await _repository.fetchRecruitmentStats();
-    employees = await EmployeesRepository().employees(activeOnly: true);
+    employees = await EmployeesRepository().fetchEmployees(activeOnly: true);
 
     isLoading = false;
     notifyListeners();

@@ -39,7 +39,7 @@ class PayrollRepository {
   Future<int> runPayroll(int y, int m) async {
     final month = monthKey(y, m);
     final hs = await LeaveRepository().holidaySet();
-    final emps = await EmployeesRepository().employees(activeOnly: true);
+    final emps = await EmployeesRepository().fetchEmployees(activeOnly: true);
     var count = 0;
     for (final e in emps) {
       final total = e.basic + e.hra + e.allowances;

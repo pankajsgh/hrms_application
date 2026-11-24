@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:hrms/features/auth/data/login_request.dart';
 import '../data/auth_repository.dart';
 
 class AuthController extends ChangeNotifier {
@@ -7,12 +8,13 @@ class AuthController extends ChangeNotifier {
   bool busy = false;
   String? error;
 
-  Future<bool> login(String username, String password) async {
+  Future<bool> login(String user_name, String pass_word) async {
     busy = true;
     error = null;
     notifyListeners();
 
-    final ok = await _repository.login(username, password);
+    var loginRequest = LoginRequest(username: user_name, password: pass_word);
+    final ok = await _repository.login(loginRequest);
 
     busy = false;
     if (!ok) {

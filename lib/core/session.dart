@@ -1,22 +1,24 @@
+import 'package:hrms/domain/entities/employee_entity.dart';
+
 import 'common.dart';
 
 /// The logged-in user and their employee profile.
 class Session {
   static Rec? user;
-  static Rec? emp;
+  static EmployeeEntity? employee;
 
-  static void set(Rec u, Rec? e) {
+  static void set(Rec u, EmployeeEntity? e) {
     user = u;
-    emp = e;
+    employee = e;
   }
 
   static void clear() {
     user = null;
-    emp = null;
+    employee = null;
   }
 
   static String get role => (user?['role'] as String?) ?? 'employee';
-  static int? get empId => (emp?['id'] as num?)?.toInt();
+  static int? get empId => (employee?.id as num?)?.toInt();
   static bool get isAdmin => role == 'admin';
   static bool get isHr => role == 'admin' || role == 'hr';
   static bool get isManager => role == 'manager';
@@ -25,5 +27,5 @@ class Session {
   static bool get canRecruit => isHr || isRecruiter;
   static bool get canEditEmployees => isHr || isRecruiter;
   static String get name =>
-      (emp?['name'] ?? user?['username'] ?? '').toString();
+      (employee?['name'] ?? user?['username'] ?? '').toString();
 }

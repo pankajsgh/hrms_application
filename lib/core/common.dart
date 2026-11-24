@@ -99,44 +99,8 @@ double r2(double v) => (v * 100).roundToDouble() / 100;
 /// 3.0 -> "3", 2.5 -> "2.5"
 String nf(num v) => v == v.roundToDouble() ? v.toInt().toString() : v.toString();
 
-const kJobTypes = ['Full-time', 'Part-time', 'Contract', 'Internship'];
 
-const kBranchOffices = [
-  'Headquarters (HQ)',
-  'Tech Hub (San Francisco)',
-  'Regional Office (London)',
-  'APAC Hub (Singapore)',
-];
-const kSources = [
-  'LinkedIn',
-  'Job portal',
-  'Referral',
-  'Walk-in',
-  'Agency',
-  'Company website',
-  'Other'
-];
-const kRounds = [
-  'Screening call',
-  'Technical round',
-  'HR round',
-  'Managerial round',
-  'Final round'
-];
-const kModes = ['In person', 'Video call', 'Phone'];
-const kInterviewResults = [
-  'Scheduled',
-  'Selected',
-  'Rejected',
-  'No show',
-  'Cancelled'
-];
-const kSpecialKinds = [
-  'Birthday',
-  'Work Anniversary',
-  'Wedding Anniversary',
-  'Other'
-];
+
 
 /// ['a','b'] -> {'a':'a','b':'b'} for dropdown options.
 Map<String, String> opts(List<String> l) => {for (final x in l) x: x};

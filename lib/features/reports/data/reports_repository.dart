@@ -57,7 +57,7 @@ class ReportsRepository {
 
   Future<List<AttendanceEntity>> fetchAttendanceDetail(int y, int m) => attendanceDetail(y, m);
 
-  Future<List<EmployeeEntity>> employees() => EmployeesRepository().employees();
+  Future<List<EmployeeEntity>> employees() => EmployeesRepository().fetchEmployees();
 
   Future<List<EmployeeEntity>> fetchEmployees() => employees();
 

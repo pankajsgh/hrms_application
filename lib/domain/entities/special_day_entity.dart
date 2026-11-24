@@ -2,6 +2,7 @@
 class SpecialDayEntity {
   final int? id;
   final int employeeId;
+  final String kind;
   final String title;
   final String date;
   final int yearly;
@@ -15,6 +16,7 @@ class SpecialDayEntity {
   const SpecialDayEntity({
     this.id,
     required this.employeeId,
+    this.kind = 'Birthday',
     required this.title,
     required this.date,
     this.yearly = 1,
@@ -26,30 +28,28 @@ class SpecialDayEntity {
     this.years,
   });
 
-  // Convert entity into Map
   Map<String, Object?> toMap() => {
     if (id != null) 'id': id,
     'employee_id': employeeId,
+    'kind': kind,
     'title': title,
     'date': date,
     'yearly': yearly,
     'created_by': createdBy,
     'created_on': createdOn,
-
-    // Joined employee and upcoming special day fields
     'emp_name': empName,
     'next': next,
     'away': away,
     'years': years,
   };
 
-  // Convert Map into entity
   factory SpecialDayEntity.fromMap(Map<String, Object?> map) {
     return SpecialDayEntity(
       id: (map['id'] as num?)?.toInt(),
       employeeId: (map['employee_id'] as num?)?.toInt() ?? 0,
-      title: (map['title'] ?? '').toString(),
-      date: (map['date'] ?? '').toString(),
+      kind: map['kind']?.toString() ?? 'Birthday',
+      title: map['title']?.toString() ?? '',
+      date: map['date']?.toString() ?? '',
       yearly: (map['yearly'] as num?)?.toInt() ?? 1,
       createdBy: (map['created_by'] as num?)?.toInt(),
       createdOn: map['created_on']?.toString(),
@@ -60,31 +60,20 @@ class SpecialDayEntity {
     );
   }
 
-  // Access values using entity['key']
   Object? operator [](String key) => toMap()[key];
 
-  // Get String value
-  String s(String key, [String def = '']) {
-    return toMap()[key]?.toString() ?? def;
-  }
+  String s(String key, [String def = '']) =>
+      toMap()[key]?.toString() ?? def;
 
-  // Get int value
   int? i(String key) {
-    final val = toMap()[key];
-
-    if (val is int) return val;
-    if (val is num) return val.toInt();
-
-    return int.tryParse(val?.toString() ?? '');
+    final value = toMap()[key];
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '');
   }
 
-  // Get double value
   double d(String key, [double def = 0.0]) {
-    final val = toMap()[key];
-
-    if (val is double) return val;
-    if (val is num) return val.toDouble();
-
-    return double.tryParse(val?.toString() ?? '') ?? def;
+    final value = toMap()[key];
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? def;
   }
 }

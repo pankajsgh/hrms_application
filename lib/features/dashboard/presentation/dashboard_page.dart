@@ -228,14 +228,14 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 12,
+            horizontal: 12,
+            vertical: 8,
           ),
           child: Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
@@ -254,8 +254,8 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
                     Text(
                       '${_count(keyName)}',
                       style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -405,8 +405,8 @@ class _DashboardFeaturePageState extends State<DashboardFeaturePage> {
                 '$value',
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],

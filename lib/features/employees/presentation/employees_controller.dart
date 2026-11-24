@@ -21,6 +21,7 @@ class EmployeesController extends ChangeNotifier {
     notifyListeners();
 
     try {
+
       final result = await _repository.fetchEmployees(
         q: searchQuery,
       );

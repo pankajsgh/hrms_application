@@ -1,14 +1,18 @@
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/db.dart';
+import 'package:hrms/core/storage_config.dart';
 import 'package:hrms/data/datasources/local_datasource.dart';
 import 'package:hrms/data/repositories/repository_impl.dart';
 import 'package:hrms/domain/entities/employee_entity.dart';
 
 class EmployeesRepository {
-  Future<List<EmployeeEntity>> employees({
+
+
+  Future<List<EmployeeEntity>> fetchEmployees({
     String q = '',
     bool activeOnly = false,
-  }) async {
+  }) async
+  {
     final search = q.trim();
 
     final queryMap = {
@@ -59,13 +63,14 @@ class EmployeesRepository {
     return raw.map((r) => EmployeeEntity.fromMap(r)).toList();
   }
 
-  Future<List<EmployeeEntity>> fetchEmployees({
-    String q = '',
-    bool activeOnly = false,
-  }) =>
-      employees(q: q, activeOnly: activeOnly);
 
   Future<String> nextCode() async {
+    if(StorageConfig.mode == StorageMode.apiOnly)
+      {
+        return 'EMP${(0 + 1).toString().padLeft(3, '0')}';
+
+      }
+
     final count = await LocalDatasource.dbCount(
       'SELECT COUNT(*) FROM employees',
     );
@@ -85,9 +90,10 @@ class EmployeesRepository {
     );
   }
 
+
   Future<List<EmployeeEntity>> scopeEmployees() async {
     final ids = await scopeIds();
-    final all = await employees(activeOnly: true);
+    final all = await fetchEmployees(activeOnly: true);
 
     if (ids == null) return all;
 

@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:hrms/comman_widget/customer_dropdown.dart';
 import 'package:hrms/core/common.dart';
@@ -125,16 +124,12 @@ class _MyLeaveTab extends StatelessWidget {
               ),
             ),
           ),
-
           const SizedBox(height: 16),
-
           const _SectionHeader(
             title: 'Leave Overview',
             subtitle: 'Your leave request summary',
           ),
-
           const SizedBox(height: 10),
-
           LayoutBuilder(
             builder: (context, constraints) {
               final width = constraints.maxWidth;
@@ -187,16 +182,12 @@ class _MyLeaveTab extends StatelessWidget {
               );
             },
           ),
-
           const SizedBox(height: 22),
-
           const _SectionHeader(
             title: 'Leave Balance',
             subtitle: 'Check your available leave days',
           ),
-
           const SizedBox(height: 10),
-
           if (controller.balances.isEmpty)
             const _EmptyState(
               icon: Icons.account_balance_wallet_outlined,
@@ -217,9 +208,7 @@ class _MyLeaveTab extends StatelessWidget {
                 },
               ),
             ),
-
           const SizedBox(height: 22),
-
           _SectionHeader(
             title: 'My Requests',
             subtitle: 'Track your leave applications',
@@ -231,9 +220,7 @@ class _MyLeaveTab extends StatelessWidget {
               ),
             ),
           ),
-
           const SizedBox(height: 10),
-
           if (controller.leaves.isEmpty)
             const _EmptyState(
               icon: Icons.event_note_outlined,
@@ -384,12 +371,9 @@ class _MyLeaveTab extends StatelessWidget {
                             setDialogState(() => selectedType = value);
                           },
                         ),
-
                         const SizedBox(height: 18),
-
                         const _FieldLabel('Leave Duration'),
                         const SizedBox(height: 7),
-
                         Row(
                           children: [
                             Expanded(
@@ -411,14 +395,15 @@ class _MyLeaveTab extends StatelessWidget {
                             ),
                           ],
                         ),
-
                         if (fromDate != null && toDate != null) ...[
                           const SizedBox(height: 10),
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: cs.primaryContainer.withValues(alpha: 0.35),
+                              color: cs.primaryContainer.withValues(
+                                alpha: 0.35,
+                              ),
                               borderRadius: BorderRadius.circular(9),
                             ),
                             child: Row(
@@ -441,12 +426,9 @@ class _MyLeaveTab extends StatelessWidget {
                             ),
                           ),
                         ],
-
                         const SizedBox(height: 18),
-
                         const _FieldLabel('Reason for Leave'),
                         const SizedBox(height: 7),
-
                         TextField(
                           controller: reasonController,
                           minLines: 3,
@@ -465,11 +447,15 @@ class _MyLeaveTab extends StatelessWidget {
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: cs.outlineVariant),
+                              borderSide: BorderSide(
+                                color: cs.outlineVariant,
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: cs.outlineVariant),
+                              borderSide: BorderSide(
+                                color: cs.outlineVariant,
+                              ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -584,11 +570,9 @@ class _ApprovalsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    final pending =
-        controller.approvalLeaves.where((e) => e.s('status') == 'Pending').length;
+    final pending = controller.approvalLeaves
+        .where((e) => e.s('status') == 'Pending')
+        .length;
 
     return RefreshIndicator(
       onRefresh: () => controller.loadLeaveData(
@@ -611,6 +595,9 @@ class _ApprovalsTab extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.orange.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: Colors.orange.withValues(alpha: 0.18),
+                ),
               ),
               child: Column(
                 children: [
@@ -633,16 +620,12 @@ class _ApprovalsTab extends StatelessWidget {
               ),
             ),
           ),
-
           const SizedBox(height: 18),
-
           const _SectionHeader(
             title: 'Requests',
             subtitle: 'Filter employee applications',
           ),
-
           const SizedBox(height: 10),
-
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -651,10 +634,12 @@ class _ApprovalsTab extends StatelessWidget {
                 avatar: const Icon(Icons.hourglass_top_rounded, size: 15),
                 label: const Text('Pending'),
                 selected: controller.pendingOnlyApprovals,
-                selectedColor: cs.primaryContainer,
                 onSelected: (value) {
                   if (value) {
-                    controller.setPendingOnlyApprovals(true, Session.empId);
+                    controller.setPendingOnlyApprovals(
+                      true,
+                      Session.empId,
+                    );
                   }
                 },
               ),
@@ -662,18 +647,18 @@ class _ApprovalsTab extends StatelessWidget {
                 avatar: const Icon(Icons.list_alt_rounded, size: 15),
                 label: const Text('All Requests'),
                 selected: !controller.pendingOnlyApprovals,
-                selectedColor: cs.primaryContainer,
                 onSelected: (value) {
                   if (value) {
-                    controller.setPendingOnlyApprovals(false, Session.empId);
+                    controller.setPendingOnlyApprovals(
+                      false,
+                      Session.empId,
+                    );
                   }
                 },
               ),
             ],
           ),
-
           const SizedBox(height: 14),
-
           if (controller.approvalLeaves.isEmpty)
             const _EmptyState(
               icon: Icons.task_alt_rounded,
@@ -789,9 +774,7 @@ class _SetupTab extends StatelessWidget {
               icon: Icons.beach_access_rounded,
               onAdd: () => _editType(context),
             ),
-
             const Divider(height: 22),
-
             if (controller.leaveTypes.isEmpty)
               const _EmptyState(
                 icon: Icons.category_outlined,
@@ -803,8 +786,13 @@ class _SetupTab extends StatelessWidget {
                     (type) => Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest.withValues(alpha: 0.25),
+                    color: cs.surfaceContainerHighest.withValues(
+                      alpha: 0.25,
+                    ),
                     borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: cs.outlineVariant.withValues(alpha: 0.6),
+                    ),
                   ),
                   child: ListTile(
                     dense: true,
@@ -841,7 +829,7 @@ class _SetupTab extends StatelessWidget {
                         ),
                       ),
                     ),
-                      trailing: PopupMenuButton<String>(
+                    trailing: PopupMenuButton<String>(
                       tooltip: 'Options',
                       onSelected: (value) {
                         if (value == 'edit') {
@@ -939,9 +927,7 @@ class _SetupTab extends StatelessWidget {
                 ),
               ],
             ),
-
             const Divider(height: 22),
-
             if (controller.holidays.isEmpty)
               const _EmptyState(
                 icon: Icons.event_busy_outlined,
@@ -953,8 +939,13 @@ class _SetupTab extends StatelessWidget {
                     (holiday) => Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest.withValues(alpha: 0.25),
+                    color: cs.surfaceContainerHighest.withValues(
+                      alpha: 0.25,
+                    ),
                     borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: cs.outlineVariant.withValues(alpha: 0.6),
+                    ),
                   ),
                   child: ListTile(
                     dense: true,
@@ -1162,8 +1153,11 @@ class _LeaveRequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     final status = leave.s('status');
+    final normalizedStatus = status.trim().toLowerCase();
 
     final employeeName = (leave.empName ?? '').trim();
     final employeeCode = (leave.empCode ?? '').trim();
@@ -1177,129 +1171,187 @@ class _LeaveRequestCard extends StatelessWidget {
       if (leaveType.isNotEmpty) leaveType,
     ].join(' · ');
 
-    final color = switch (status.toLowerCase()) {
+    final color = switch (normalizedStatus) {
       'approved' => Colors.green,
       'rejected' => Colors.red,
       'pending' => Colors.orange,
       _ => cs.primary,
     };
 
+    final actions = <Widget>[
+      if (onReject != null)
+        _SmallActionButton(
+          label: 'Reject',
+          icon: Icons.close,
+          color: Colors.red,
+          onPressed: onReject!,
+        ),
+      if (onApprove != null)
+        _SmallActionButton(
+          label: 'Approve',
+          icon: Icons.check,
+          color: Colors.green,
+          onPressed: onApprove!,
+        ),
+      if (onCancel != null)
+        _SmallActionButton(
+          label: 'Cancel',
+          icon: Icons.close,
+          color: Colors.red,
+          onPressed: onCancel!,
+        ),
+    ];
+
+    final info = Row(
+      children: [
+        Expanded(
+          child: _CompactInfo(
+            label: 'From',
+            value: fmtDate(leave['start_date']),
+          ),
+        ),
+        Expanded(
+          child: _CompactInfo(
+            label: 'To',
+            value: fmtDate(leave['end_date']),
+          ),
+        ),
+        Expanded(
+          child: _CompactInfo(
+            label: 'Days',
+            value: nf(leave.d('days')),
+          ),
+        ),
+      ],
+    );
+
     return Card(
       elevation: 0,
       margin: EdgeInsets.zero,
+      color: cs.surface,
+      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: cs.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: cs.outlineVariant.withValues(alpha: 0.65),
+        ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          children: [
-            // Employee / Leave header
-            Row(
+      child: Column(
+        children: [
+          // Main employee and status section.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+            child: Row(
               children: [
-                CircleAvatar(
-                  radius: 17,
-                  backgroundColor: cs.primaryContainer,
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer.withValues(alpha: 0.75),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   child: Icon(
                     showEmployee
                         ? Icons.person_outline
                         : Icons.beach_access_outlined,
                     color: cs.primary,
-                    size: 17,
+                    size: 19,
                   ),
                 ),
-                const SizedBox(width: 9),
-
+                const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    showEmployee
-                        ? (employeeTitle.isEmpty
-                        ? 'Employee details unavailable'
-                        : employeeTitle)
-                        : (leaveType.isEmpty ? 'Leave' : leaveType),
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        showEmployee
+                            ? (employeeName.isEmpty
+                            ? 'Employee details unavailable'
+                            : employeeName)
+                            : (leaveType.isEmpty ? 'Leave' : leaveType),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (showEmployee && employeeTitle.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          [
+                            if (employeeCode.isNotEmpty) employeeCode,
+                            if (department.isNotEmpty) department,
+                            if (leaveType.isNotEmpty) leaveType,
+                          ].join(' · '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-
-                const SizedBox(width: 5),
-
+                const SizedBox(width: 8),
                 _StatusBadge(
                   status: status,
                   color: color,
                 ),
               ],
             ),
+          ),
 
-            const SizedBox(height: 10),
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: cs.outlineVariant.withValues(alpha: 0.4),
+          ),
 
-            // Dates, days and action buttons
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: _CompactInfo(
-                    label: 'From',
-                    value: fmtDate(leave['start_date']),
-                  ),
-                ),
-                Expanded(
-                  child: _CompactInfo(
-                    label: 'To',
-                    value: fmtDate(leave['end_date']),
-                  ),
-                ),
-                Expanded(
-                  child: _CompactInfo(
-                    label: 'Days',
-                    value: nf(leave.d('days')),
-                  ),
-                ),
+          // Date and duration section.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 440 && actions.isNotEmpty) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      info,
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: actions,
+                      ),
+                    ],
+                  );
+                }
 
-                if (onReject != null || onApprove != null || onCancel != null)
-                  const SizedBox(width: 6),
-
-                if (onReject != null)
-                  _SmallActionButton(
-                    label: 'Reject',
-                    icon: Icons.close,
-                    color: Colors.red,
-                    onPressed: onReject!,
-                  ),
-
-                if (onApprove != null) ...[
-                  const SizedBox(width: 5),
-                  _SmallActionButton(
-                    label: 'Approve',
-                    icon: Icons.check,
-                    color: Colors.green,
-                    onPressed: onApprove!,
-                  ),
-                ],
-
-                if (onCancel != null)
-                  _SmallActionButton(
-                    label: 'Cancel',
-                    icon: Icons.close,
-                    color: Colors.red,
-                    onPressed: onCancel!,
-                  ),
-              ],
+                return Row(
+                  children: [
+                    Expanded(child: info),
+                    if (actions.isNotEmpty) ...[
+                      const SizedBox(width: 10),
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: actions,
+                      ),
+                    ],
+                  ],
+                );
+              },
             ),
-
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
-
 
 class _SmallActionButton extends StatelessWidget {
   const _SmallActionButton({
@@ -1328,7 +1380,11 @@ class _SmallActionButton extends StatelessWidget {
       ),
       style: OutlinedButton.styleFrom(
         foregroundColor: color,
-        side: BorderSide(color: color.withValues(alpha: 0.4)),
+        backgroundColor: color.withValues(alpha: 0.045),
+        side: BorderSide(color: color.withValues(alpha: 0.35)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
         padding: const EdgeInsets.symmetric(
           horizontal: 10,
           vertical: 6,
@@ -1345,8 +1401,6 @@ class _SmallActionButton extends StatelessWidget {
 // BALANCE CARD
 // ============================================================================
 
-
-
 class _BalanceCard extends StatelessWidget {
   const _BalanceCard({required this.balance});
 
@@ -1360,6 +1414,7 @@ class _BalanceCard extends StatelessWidget {
     final total = balance.d('days_per_year');
     final used = balance.d('used');
     final pending = balance.d('pending');
+
     final remaining =
     (total - used - pending).clamp(0.0, double.infinity);
 
@@ -1371,9 +1426,12 @@ class _BalanceCard extends StatelessWidget {
       child: Card(
         margin: EdgeInsets.zero,
         elevation: 0,
+        color: cs.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(9),
-          side: BorderSide(color: cs.outlineVariant),
+          side: BorderSide(
+            color: cs.outlineVariant.withValues(alpha: 0.75),
+          ),
         ),
         child: Padding(
           padding: const EdgeInsets.all(8),
@@ -1383,10 +1441,17 @@ class _BalanceCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(
-                    paid ? Icons.wallet_outlined : Icons.money_off,
-                    size: 15,
-                    color: cs.primary,
+                  Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: cs.primaryContainer,
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                    child: Icon(
+                      paid ? Icons.wallet_outlined : Icons.money_off,
+                      size: 15,
+                      color: cs.primary,
+                    ),
                   ),
                   const SizedBox(width: 5),
                   Expanded(
@@ -1467,7 +1532,6 @@ class _BalanceCard extends StatelessWidget {
   }
 }
 
-
 // ============================================================================
 // SUMMARY CARD
 // ============================================================================
@@ -1493,12 +1557,18 @@ class _SummaryCard extends StatelessWidget {
     return Card(
       elevation: 0,
       margin: EdgeInsets.zero,
+      color: cs.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: cs.outlineVariant),
+        side: BorderSide(
+          color: cs.outlineVariant.withValues(alpha: 0.75),
+        ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 6,
+        ),
         child: Row(
           children: [
             Container(
@@ -1562,12 +1632,22 @@ class _WelcomeCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 8,
+      ),
       decoration: BoxDecoration(
-        color: cs.primaryContainer.withValues(alpha: 0.55),
+        gradient: LinearGradient(
+          colors: [
+            cs.primaryContainer.withValues(alpha: 0.75),
+            cs.primaryContainer.withValues(alpha: 0.35),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
-          color: cs.primary.withValues(alpha: 0.12),
+          color: cs.primary.withValues(alpha: 0.15),
         ),
       ),
       child: Row(
@@ -1626,6 +1706,7 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     return Row(
       children: [
@@ -1643,47 +1724,13 @@ class _SectionHeader extends StatelessWidget {
               Text(
                 subtitle,
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: cs.onSurfaceVariant,
                 ),
               ),
             ],
           ),
         ),
         if (trailing != null) trailing!,
-      ],
-    );
-  }
-}
-
-class _InfoItem extends StatelessWidget {
-  const _InfoItem({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final style = Theme.of(context).textTheme.labelSmall;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: cs.primary),
-        const SizedBox(width: 5),
-        Text(
-          '$label: ',
-          style: style?.copyWith(color: cs.onSurfaceVariant),
-        ),
-        Text(
-          value,
-          style: style?.copyWith(fontWeight: FontWeight.w600),
-        ),
       ],
     );
   }
@@ -1713,7 +1760,9 @@ class _EmptyState extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: cs.outlineVariant),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.75),
+        ),
       ),
       child: Column(
         children: [
@@ -1769,6 +1818,9 @@ class _StatusBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: color.withValues(alpha: 0.18),
+        ),
       ),
       child: Text(
         status.isEmpty ? 'Unknown' : status,
