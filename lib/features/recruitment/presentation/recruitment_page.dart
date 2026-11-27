@@ -12,6 +12,7 @@ import 'package:hrms/domain/entities/recruitment_entity.dart';
 import 'package:hrms/features/recruitment/presentation/Job_popup.dart';
 import 'package:hrms/features/recruitment/presentation/candidate_dialog.dart';
 import 'package:hrms/features/recruitment/presentation/candidate_popup.dart';
+import 'package:hrms/features/recruitment/presentation/expendable_widget.dart';
 import 'package:intl/intl.dart';
 
 import '../../employees/data/employees_repository.dart';
@@ -183,6 +184,15 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
       description: _string(map['description']),
       status: _string(map['status'], job?.status ?? 'Open'),
       approval: job?.approval ?? 'Pending',
+      openings: _int(map['openings'], job?.openings ?? 1),
+      branch: _string(map['branch'], job?.branch ?? ''),
+      location: _string(map['location'], job?.location ?? ''),
+      employmentType: _string(map['employment_type'], job?.employmentType ?? ''),
+      experience: _string(map['experience'], job?.experience ?? ''),
+      salaryMin: _double(map['salary_min'], job?.salaryMin ?? 0),
+      salaryMax: _double(map['salary_max'], job?.salaryMax ?? 0),
+      skills: _string(map['skills'], job?.skills ?? ''),
+      closingDate: _string(map['closing_date'], job?.closingDate ?? ''),
       createdBy: job?.createdBy,
       createdOn: job?.createdOn,
       approvedBy: job?.approvedBy,
@@ -502,37 +512,108 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
     return Panel(
       padding: EdgeInsets.zero,
       child:
+
       ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(width: 4, color: accent),
+              Container(
+                width: 4,
+                color: accent,
+              ),
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(11, 6, 9, 7),
+                  decoration: BoxDecoration(
+                    color: cs.surface,
+                    border: Border.all(
+                      color: cs.outlineVariant.withValues(alpha: 0.5),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Title and status
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Text(
                               job.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 16.5,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
                           const SizedBox(width: 6),
                           StatusChip(status),
+                          PopupMenuButton<String>(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 36,
+                              minHeight: 36,
+                            ),
+                            iconSize: 19,
+                            tooltip: 'Job options',
+                            onSelected: (value) {
+                              switch (value) {
+                                case 'edit':
+                                  _editJob(job);
+                                  break;
+                                case 'delete':
+                                  _deleteJob(job);
+                                  break;
+                                case 'candidates':
+                                  _openCandidatesOf(job);
+                                  break;
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              if (approval == 'Approved')
+                                const PopupMenuItem(
+                                  value: 'candidates',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.people_outline, size: 17),
+                                      SizedBox(width: 9),
+                                      Text('Candidates'),
+                                    ],
+                                  ),
+                                ),
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit_outlined, size: 17),
+                                    SizedBox(width: 9),
+                                    Text('Edit job'),
+                                  ],
+                                ),
+                              ),
+                              if (canDelete)
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.delete_outline,
+                                        size: 17,
+                                        color: cs.error,
+                                      ),
+                                      const SizedBox(width: 9),
+                                      Text(
+                                        'Delete job',
+                                        style: TextStyle(color: cs.error),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
                         ],
                       ),
 
@@ -540,55 +621,89 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
                         const SizedBox(height: 2),
                         Text(
                           department,
-                          style: theme.textTheme.bodySmall?.copyWith(
+                          style: TextStyle(
+                            fontSize: 10.5,
                             color: cs.onSurfaceVariant,
                           ),
                         ),
                       ],
 
-                      const SizedBox(height: 9),
+                      const SizedBox(height: 7),
 
-                      // Compact metadata
+                      // Interactive metadata
+
                       Wrap(
-                        spacing: 14,
+                        spacing: 10,
                         runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          _meta(
-                            Icons.person_outline,
-                            '${job.cands ?? 0} candidates',
-                          ),
                           _meta(
                             Icons.approval_outlined,
                             job.approval,
                           ),
+
+                          ElevatedButton(
+                            onPressed: approval == 'Approved'
+                                ? () => _openCandidatesOf(job)
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: Colors.grey.shade300,
+                              disabledForegroundColor: Colors.grey.shade600,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 9,
+                                vertical: 6,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 3),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.people_outline, size: 13),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    '${job.cands ?? 0} Candidates',
+                                    style: const TextStyle(fontSize: 10),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.arrow_forward, size: 13),
+                                ],
+                              ),
+                            ),
+                          ),
                         ],
                       ),
 
+
+                      // Expandable description
                       if (job.description.isNotEmpty) ...[
-                        const SizedBox(height: 7),
-                        Text(
-                          job.description,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            height: 1.35,
-                            color: cs.onSurfaceVariant,
-                          ),
+                        const SizedBox(height: 5),
+                        ExpandableJobDescription(
+                          description: job.description,
                         ),
                       ],
 
+                      // Approval messages
                       if (approval == 'Pending') ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 7),
                         _notice(
                           Icons.hourglass_top,
                           Colors.orange,
                           'Waiting for admin approval'
-                              '${(job.creatorName ?? '').isEmpty ? '' : ' • by ${job.creatorName}'}',
+                              '${(job.creatorName ?? '').isEmpty ? '' : ' • ${job.creatorName}'}',
                         ),
                       ],
 
                       if (approval == 'Rejected') ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 7),
                         _notice(
                           Icons.block,
                           cs.error,
@@ -598,89 +713,40 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
                         ),
                       ],
 
-                      const SizedBox(height: 9),
-
-                      Divider(
-                        height: 1,
-                        thickness: 1,
-                        color: cs.outlineVariant.withValues(alpha: 0.45),
-                      ),
-
-                      const SizedBox(height: 5),
-
-                      // Action buttons
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        alignment: WrapAlignment.end,
-                        children: [
-                          if (Session.isAdmin && approval == 'Pending') ...[
-                            FilledButton.icon(
-                              onPressed: () => _approve(job),
-                              icon: const Icon(Icons.check, size: 17),
-                              label: const Text('Approve'),
-                              style: FilledButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
+                      // Admin actions
+                      if (Session.isAdmin && approval == 'Pending') ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: () => _approve(job),
+                                icon: const Icon(Icons.check, size: 15),
+                                label: const Text('Approve'),
+                                style: FilledButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  minimumSize: const Size(0, 32),
                                 ),
                               ),
                             ),
-                            OutlinedButton.icon(
-                              onPressed: () => _reject(job),
-                              icon: const Icon(Icons.close, size: 17),
-                              label: const Text('Reject'),
-                              style: OutlinedButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
+                            const SizedBox(width: 7),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _reject(job),
+                                icon: const Icon(Icons.close, size: 15),
+                                label: const Text('Reject'),
+                                style: OutlinedButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  minimumSize: const Size(0, 32),
+                                  foregroundColor: cs.error,
                                 ),
                               ),
                             ),
                           ],
-
-                          if (approval == 'Approved')
-                            TextButton.icon(
-                              onPressed: () => _openCandidatesOf(job),
-                              icon: const Icon(
-                                Icons.people_alt_outlined,
-                                size: 17,
-                              ),
-                              label: const Text('Candidates'),
-                              style: TextButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                              ),
-                            ),
-
-                          TextButton.icon(
-                            onPressed: () => _editJob(job),
-                            icon: const Icon(
-                              Icons.edit_outlined,
-                              size: 17,
-                            ),
-                            label: const Text('Edit'),
-                            style: TextButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          ),
-
-                          if (canDelete)
-                            TextButton.icon(
-                              onPressed: () => _deleteJob(job),
-                              style: TextButton.styleFrom(
-                                foregroundColor: cs.error,
-                                visualDensity: VisualDensity.compact,
-                              ),
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                size: 17,
-                              ),
-                              label: const Text('Delete'),
-                            ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -689,9 +755,11 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
           ),
         ),
       )
+
       ,
     );
   }
+
 
   Widget _jobsTab() {
     const filters = [
@@ -1173,7 +1241,7 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
       },
       itemBuilder: (_) => <PopupMenuEntry<String>>[
         for (final stage in kStages)
-          if (stage != candidate.stage)
+          if (!(stage == candidate.stage || stage == 'Interview'))
             PopupMenuItem(
               value: 'stage:$stage',
               child: Text('Move to $stage'),
@@ -1843,57 +1911,73 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
   Widget _statsRow() {
     final items = [
       (
-      'Open jobs',
+      'Open Jobs',
       _stats['openJobs'] ?? 0,
-      Icons.work_outline,
+      Icons.work_outline_rounded,
       Colors.teal,
       ),
       (
-      'Awaiting approval',
+      'Awaiting Approval',
       _stats['pendingJobs'] ?? 0,
-      Icons.hourglass_top,
+      Icons.hourglass_top_rounded,
       Colors.orange,
       ),
       (
-      'Active candidates',
+      'Active Candidates',
       _stats['candidates'] ?? 0,
-      Icons.people_outline,
+      Icons.people_outline_rounded,
       Colors.indigo,
       ),
       (
-      'Interviews ahead',
+      'Interviews Ahead',
       _stats['interviews'] ?? 0,
-      Icons.event_available,
+      Icons.event_available_rounded,
       Colors.blue,
       ),
       (
-      'Hired this month',
+      'Hired This Month',
       _stats['hired'] ?? 0,
       Icons.verified_outlined,
       Colors.green,
       ),
     ];
 
-    return SizedBox(
-      height: 70,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          for (final item in items)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: StatCard(
-                item.$1,
-                '${item.$2}',
-                item.$3,
-                item.$4,
-              ),
-            ),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+
+        final crossAxisCount = width >= 1100
+            ? 6
+            : width >= 750
+            ? 4
+            : width >= 500
+            ? 3
+            : 2;
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: items.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            mainAxisExtent: 50,
+          ),
+          itemBuilder: (context, index) {
+            final item = items[index];
+
+            return StatCard(
+              item.$1,
+              '${item.$2}',
+              item.$3,
+              item.$4,
+            );
+          },
+        );
+      },
     );
   }
-
   Widget _primaryAction() {
     final narrow = _narrow;
 
@@ -1954,7 +2038,7 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
         children: [
           const Header('Recruitment'),
           _statsRow(),
-          const SizedBox(height: 12),
+          SizedBox(height: 12,),
           Row(
             children: [
               Expanded(

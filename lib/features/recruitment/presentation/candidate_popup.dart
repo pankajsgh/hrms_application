@@ -613,18 +613,36 @@ class _CandidateFormDialogState extends State<CandidateFormDialog> {
   // ------------------------------------------------------------
 
   Widget _resumeUploadButton() {
-    return OutlinedButton.icon(
-      onPressed: _isParsingResume ? null : _pickResume,
-      icon: _isParsingResume
-          ? const SizedBox(
-        height: 16,
-        width: 16,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      )
-          : const Icon(Icons.upload_file, size: 18),
-      label: Text(
-        _isParsingResume ? 'Reading...' : 'Upload Resume',
-        style: const TextStyle(fontSize: 12),
+    final isMobile = MediaQuery.of(context).size.width < 500;
+
+    return SizedBox(
+      height: isMobile ? 32 : 40,
+      child: OutlinedButton.icon(
+        onPressed: _isParsingResume ? null : _pickResume,
+        icon: _isParsingResume
+            ? SizedBox(
+          height: isMobile ? 12 : 16,
+          width: isMobile ? 12 : 16,
+          child: const CircularProgressIndicator(strokeWidth: 2),
+        )
+            : Icon(
+          Icons.upload_file,
+          size: isMobile ? 14 : 18,
+        ),
+        label: Text(
+          _isParsingResume
+              ? 'Reading...'
+              : isMobile
+              ? 'Resume'
+              : 'Upload Resume',
+          style: TextStyle(fontSize: isMobile ? 10 : 12),
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: EdgeInsets.symmetric(horizontal: isMobile ? 7 : 12),
+          minimumSize: Size(0, isMobile ? 32 : 40),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.compact,
+        ),
       ),
     );
   }
@@ -1123,12 +1141,14 @@ class _CandidateSection extends StatelessWidget {
                   children: [
                     Text(
                       title,
+                      maxLines: 1,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     Text(
                       subtitle,
+                      maxLines: 2,
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontSize: 11,
                         color: cs.onSurfaceVariant,

@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:hrms/domain/entities/leave_entity.dart';
+import 'package:hrms/features/attendance/presentation/leave_balance_section.dart';
 import 'package:intl/intl.dart';
 
 import 'package:hrms/core/session.dart';
@@ -486,6 +487,7 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
                       style: const TextStyle(fontSize: 11),
                     ),
                     style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(9),
@@ -513,6 +515,8 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
                       style: const TextStyle(fontSize: 11),
                     ),
                     style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(9),
                       ),
@@ -589,148 +593,6 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
     );
   }
 
-  // ============================================================
-  // LEAVE BALANCE
-  // ============================================================
-
-  Widget _leaveBalances() {
-    final cs = Theme.of(context).colorScheme;
-
-    return _card(
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _heading(
-            'Leave Balance',
-            Icons.event_available_rounded,
-            trailing: Text(
-              '$_year',
-              style: TextStyle(
-                color: cs.onSurfaceVariant,
-                fontSize: 10,
-              ),
-            ),
-          ),
-          const SizedBox(height: 11),
-          if (_balances.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'No leave balance available.',
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: 10,
-                ),
-              ),
-            )
-          else
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final columns =
-                constraints.maxWidth >= 340 ? 2 : 1;
-
-                final itemWidth =
-                    (constraints.maxWidth -
-                        (columns - 1) * 7) /
-                        columns;
-
-                return Wrap(
-                  spacing: 7,
-                  runSpacing: 7,
-                  children: _balances.map((balance) {
-                    final remaining = balance.d('remaining');
-                    final used = balance.d('used');
-                    final total = balance.d('days_per_year');
-
-                    final progress = total > 0
-                        ? (used / total).clamp(0.0, 1.0)
-                        : 0.0;
-
-                    return SizedBox(
-                      width: itemWidth,
-                      child: Material(
-                        color: cs.surfaceContainerHighest
-                            .withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(10),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(10),
-                          onTap: () {
-                            _showMessage(
-                              '${balance.s('name')}: '
-                                  '${nf(remaining)} days remaining.',
-                            );
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(10),
-                            child: Column(
-                              crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        balance.s('name'),
-                                        maxLines: 1,
-                                        overflow:
-                                        TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          fontWeight:
-                                          FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                    Icon(
-                                      Icons.chevron_right_rounded,
-                                      size: 15,
-                                      color: cs.onSurfaceVariant,
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  '${nf(remaining)} days',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: cs.primary,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${nf(used)} used of ${nf(total)}',
-                                  style: TextStyle(
-                                    fontSize: 8,
-                                    color: cs.onSurfaceVariant,
-                                  ),
-                                ),
-                                const SizedBox(height: 7),
-                                ClipRRect(
-                                  borderRadius:
-                                  BorderRadius.circular(5),
-                                  child: LinearProgressIndicator(
-                                    value: progress,
-                                    minHeight: 4,
-                                    backgroundColor:
-                                    cs.outlineVariant
-                                        .withValues(alpha: 0.35),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
 
   // ============================================================
   // SELECTED DATE DETAILS
@@ -1088,71 +950,59 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
 
   Widget _responsiveContent(double width) {
     final todayCard = _todayCard();
-    final leaveCard = _leaveBalances();
+
+    final leaveCard = LeaveBalanceSection(
+      balances: _balances,
+      year: _year,
+    );
+
     final calendarCard = _calendar();
 
-    // Desktop: Today + Leave on the left, Calendar on the right.
-    if (width >= 1000) {
+    // Desktop and tablet
+    if (width >= 620) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Left side: Attendance and Calendar vertically.
           Expanded(
-            flex: 4,
             child: ListView(
               padding: const EdgeInsets.only(bottom: 16),
               children: [
                 todayCard,
-                const SizedBox(height: 10),
-                leaveCard,
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 6,
-            child: ListView(
-              padding: const EdgeInsets.only(bottom: 16),
-              children: [
+                const SizedBox(height: 12),
                 calendarCard,
               ],
             ),
           ),
-        ],
-      );
-    }
 
-    // Tablet: Today + Leave side by side, Calendar below.
-    if (width >= 620) {
-      return ListView(
-        padding: const EdgeInsets.only(bottom: 16),
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: todayCard),
-              const SizedBox(width: 10),
-              Expanded(child: leaveCard),
-            ],
+          const SizedBox(width: 12),
+
+          // Right side: Leave Balance.
+          SizedBox(
+            width: width >= 1000 ? 280 : 260,
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 16),
+              children: [
+                leaveCard,
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
-          calendarCard,
         ],
       );
     }
 
-    // Mobile: All components stacked vertically.
+    // Mobile: All cards vertically.
     return ListView(
       padding: const EdgeInsets.only(bottom: 16),
       children: [
         todayCard,
         const SizedBox(height: 9),
-        leaveCard,
-        const SizedBox(height: 9),
         calendarCard,
+        const SizedBox(height: 9),
+        leaveCard,
       ],
     );
   }
-
   Widget _myAttendance() {
     return LayoutBuilder(
       builder: (context, constraints) {

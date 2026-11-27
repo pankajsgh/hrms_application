@@ -107,13 +107,17 @@ class UsersFeaturePageState extends State<UsersFeaturePage> {
           Header(
             'Users & Access',
             actions: [
-              FilledButton.icon(
-                onPressed: _add,
-                icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
-                label: const Text('Create Login'),
-                style: FilledButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(9),
+              SizedBox(
+                height: 42,
+                child: FilledButton.icon(
+                  onPressed: _add,
+                  icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
+                  label: const Text('Create Login'),
+                  style: FilledButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(9),
+                    ),
                   ),
                 ),
               ),
@@ -149,7 +153,7 @@ class UsersFeaturePageState extends State<UsersFeaturePage> {
                             color: cs.outlineVariant.withValues(alpha: 0.6)),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(12),
                         child: Row(
                           children: [
                             Container(

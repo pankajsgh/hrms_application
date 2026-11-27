@@ -5,6 +5,15 @@ class JobEntity {
   final String description;
   final String status;
   final String approval;
+  final int openings;
+  final String? branch;
+  final String? location;
+  final String? employmentType;
+  final String? experience;
+  final double? salaryMin;
+  final double? salaryMax;
+  final String? skills;
+  final String? closingDate;
   final int? createdBy;
   final String? createdOn;
   final int? approvedBy;
@@ -20,6 +29,15 @@ class JobEntity {
     required this.description,
     this.status = 'Open',
     this.approval = 'Pending',
+    this.openings = 1,
+    this.branch,
+    this.location,
+    this.employmentType,
+    this.experience,
+    this.salaryMin,
+    this.salaryMax,
+    this.skills,
+    this.closingDate,
     this.createdBy,
     this.createdOn,
     this.approvedBy,
@@ -36,6 +54,15 @@ class JobEntity {
         'description': description,
         'status': status,
         'approval': approval,
+        'openings': openings,
+        if (branch != null) 'branch': branch,
+        if (location != null) 'location': location,
+        if (employmentType != null) 'employment_type': employmentType,
+        if (experience != null) 'experience': experience,
+        if (salaryMin != null) 'salary_min': salaryMin,
+        if (salaryMax != null) 'salary_max': salaryMax,
+        if (skills != null) 'skills': skills,
+        if (closingDate != null) 'closing_date': closingDate,
         'created_by': createdBy,
         'created_on': createdOn,
         'approved_by': approvedBy,
@@ -52,6 +79,15 @@ class JobEntity {
         description: (map['description'] ?? '').toString(),
         status: (map['status'] ?? 'Open').toString(),
         approval: (map['approval'] ?? 'Pending').toString(),
+        openings: (map['openings'] as num?)?.toInt() ?? 1,
+        branch: map['branch']?.toString(),
+        location: map['location']?.toString(),
+        employmentType: map['employment_type']?.toString(),
+        experience: map['experience']?.toString(),
+        salaryMin: (map['salary_min'] as num?)?.toDouble(),
+        salaryMax: (map['salary_max'] as num?)?.toDouble(),
+        skills: map['skills']?.toString(),
+        closingDate: map['closing_date']?.toString(),
         createdBy: map['created_by'] as int?,
         createdOn: map['created_on']?.toString(),
         approvedBy: map['approved_by'] as int?,

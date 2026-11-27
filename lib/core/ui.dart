@@ -288,20 +288,20 @@ class StatCard extends StatelessWidget {
       width: MediaQuery.of(context).size.width < 800 ? 150 : 210,
       child: Panel(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: color.withOpacity(0.14),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(icon, color: color, size: 24),
+              child: Icon(icon, color: color, size: 20),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -310,7 +310,7 @@ class StatCard extends StatelessWidget {
                     Text(value,
                         style: Theme.of(context)
                             .textTheme
-                            .titleLarge
+                            .titleMedium
                             ?.copyWith(fontWeight: FontWeight.w500)),
                     Text(label,
                         style: Theme.of(context).textTheme.bodySmall,

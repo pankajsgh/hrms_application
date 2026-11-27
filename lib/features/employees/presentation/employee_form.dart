@@ -929,8 +929,7 @@ Future<int?> showEmployeeForm(
                                   final existingId = existing?.i('id');
 
                                   final savedId =
-                                  await EmployeesRepository()
-                                      .saveEmployee(
+                                  await EmployeesRepository().saveEmployee(
                                     data,
                                     id: existingId,
                                   );

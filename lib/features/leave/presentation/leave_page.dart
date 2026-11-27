@@ -1,9 +1,12 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:hrms/comman_widget/customer_dropdown.dart';
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/session.dart';
 import 'package:hrms/core/ui.dart';
 import 'package:hrms/domain/entities/leave_entity.dart';
+import 'package:hrms/features/leave/presentation/balance_card.dart';
 
 import '../data/leave_repository.dart';
 import 'leave_controller.dart';
@@ -118,41 +121,56 @@ class _MyLeaveTab extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                OutlinedButton.icon(
-                  onPressed: controller.isSubmitting
-                      ? null
-                      : () => _apply(context, defaultTypeName: 'home'),
-                  icon: const Icon(Icons.home_work_outlined, size: 16),
-                  label: const Text('Apply WFH'),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                SizedBox(
+                  height: 40,
+                  child: OutlinedButton.icon(
+                    onPressed: controller.isSubmitting
+                        ? null
+                        : () => _apply(context, defaultTypeName: 'home'),
+                    icon: const Icon(Icons.home_work_outlined, size: 16),
+                    label: const Text('Apply WFH'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ),
-                OutlinedButton.icon(
-                  onPressed: controller.isSubmitting
-                      ? null
-                      : () => _apply(context, defaultTypeName: 'field'),
-                  icon: const Icon(Icons.near_me_outlined, size: 16),
-                  label: const Text('Work Outside'),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                SizedBox(
+                  height: 40,
+                  child: OutlinedButton.icon(
+                    onPressed: controller.isSubmitting
+                        ? null
+                        : () => _apply(context, defaultTypeName: 'field'),
+                    icon: const Icon(Icons.near_me_outlined, size: 16),
+                    label: const Text('Work Outside'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ),
-                FilledButton.icon(
-                  onPressed: controller.isSubmitting
-                      ? null
-                      : () => _apply(context),
-                  icon: const Icon(Icons.add_rounded, size: 16),
-                  label: Text(
-                    controller.isSubmitting ? 'Please wait' : 'Apply Leave',
-                  ),
-                  style: FilledButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                SizedBox(
+                  height: 40,
+                  child: FilledButton.icon(
+                    onPressed: controller.isSubmitting
+                        ? null
+                        : () => _apply(context),
+                    icon: const Icon(Icons.add_rounded, size: 16),
+                    label: Text(
+                      controller.isSubmitting ? 'Please wait' : 'Apply Leave',
+                    ),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ),
@@ -231,19 +249,31 @@ class _MyLeaveTab extends StatelessWidget {
             )
           else
             SizedBox(
-              height: 145,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: controller.balances.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (context, index) {
-                  return _BalanceCard(
-                    balance: controller.balances[index],
-                  );
-                },
+              height: 120,
+              width: double.infinity,
+              child: ScrollConfiguration(
+                behavior: const MaterialScrollBehavior().copyWith(
+                  dragDevices: {
+                    PointerDeviceKind.touch,
+                    PointerDeviceKind.mouse,
+                    PointerDeviceKind.trackpad,
+                  },
+                ),
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  itemCount: controller.balances.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (context, index) {
+                    return BalanceCard(
+                      balance: controller.balances[index],
+                    );
+                  },
+                ),
               ),
             ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 0),
           _SectionHeader(
             title: 'My Requests',
             subtitle: 'Track your leave applications',
@@ -1576,141 +1606,6 @@ class _SmallActionButton extends StatelessWidget {
 }
 
 // ============================================================================
-// BALANCE CARD
-// ============================================================================
-
-class _BalanceCard extends StatelessWidget {
-  const _BalanceCard({required this.balance});
-
-  final LeaveBalanceEntity balance;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    final paid = balance.i('paid') == 1;
-    final total = balance.d('days_per_year');
-    final used = balance.d('used');
-    final pending = balance.d('pending');
-
-    final remaining =
-    (total - used - pending).clamp(0.0, double.infinity);
-
-    final progress =
-    total > 0 ? (remaining / total).clamp(0.0, 1.0) : 0.0;
-
-    return SizedBox(
-      width: 175,
-      child: Card(
-        margin: EdgeInsets.zero,
-        elevation: 0,
-        color: cs.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(9),
-          side: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.75),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: BoxDecoration(
-                      color: cs.primaryContainer,
-                      borderRadius: BorderRadius.circular(7),
-                    ),
-                    child: Icon(
-                      paid ? Icons.wallet_outlined : Icons.money_off,
-                      size: 15,
-                      color: cs.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: Text(
-                      balance.s('name'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 5),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    paid ? nf(remaining) : '—',
-                    style: TextStyle(
-                      fontSize: 19,
-                      height: 1,
-                      fontWeight: FontWeight.bold,
-                      color: cs.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    paid ? 'days left' : 'unpaid',
-                    style: TextStyle(
-                      fontSize: 9,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              if (paid)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(5),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 4,
-                    backgroundColor: cs.surfaceContainerHighest,
-                  ),
-                ),
-              const SizedBox(height: 6),
-              _balanceRow('Used', used),
-              _balanceRow('Pending', pending),
-              if (paid) _balanceRow('Total', total),
-              if (paid) _balanceRow('Remaining', remaining),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _balanceRow(String label, double value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 9)),
-          Text(
-            nf(value),
-            style: const TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ============================================================================
 // SUMMARY CARD
 // ============================================================================
 
@@ -1720,68 +1615,72 @@ class _SummaryCard extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.color,
+    this.onTap,
   });
 
   final String title;
   final String value;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      color: cs.surface,
+    return Material(
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.75),
+          color: cs.outlineVariant.withValues(alpha: 0.65),
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 6,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 37,
-              height: 37,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 20),
               ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    value,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      value,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant,
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

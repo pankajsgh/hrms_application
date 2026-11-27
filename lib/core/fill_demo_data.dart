@@ -126,11 +126,11 @@ class FillDemoData {
         ['Earned Leave', 15, 1],
         ['Unpaid Leave', 0, 0],
         ['Maternity Leave', 90, 1],
-        ['Paternity Leave', 15, 1],
-        ['Marriage Leave', 5, 1],
-        ['Bereavement Leave', 5, 1],
-        ['Compensatory Leave', 5, 1],
-        ['Study Leave', 10, 1],
+        // ['Paternity Leave', 15, 1],
+        // ['Marriage Leave', 5, 1],
+        // ['Bereavement Leave', 5, 1],
+        // ['Compensatory Leave', 5, 1],
+        // ['Study Leave', 10, 1],
       ];
 
       for (final t in leaveTypes) {
@@ -312,10 +312,12 @@ class FillDemoData {
       }
 
       // ---------------------------------------------------------
-      // 9. INTERVIEWS - 10 RECORDS
-      // ---------------------------------------------------------
+// 9. INTERVIEWS - ONLY INTERVIEW-STAGE CANDIDATES
+// ---------------------------------------------------------
 
       for (int i = 0; i < 10; i++) {
+        if (candidateStages[i] != 'Interview') continue;
+
         final interviewDate = now.add(Duration(days: i + 1));
 
         await txn.insert('interviews', {
@@ -335,7 +337,6 @@ class FillDemoData {
           'feedback': '',
         });
       }
-
       // ---------------------------------------------------------
       // 10. GOALS - 10 RECORDS
       // ---------------------------------------------------------

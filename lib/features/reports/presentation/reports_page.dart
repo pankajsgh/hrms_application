@@ -903,7 +903,7 @@ class ReportsFeaturePageState extends State<ReportsFeaturePage> {
             'Reports & Analytics',
             actions: [_buildExportMenu()],
           ),
-          const SizedBox(height: 12),
+          // const SizedBox(height: 12),
           _buildToolbar(),
           const SizedBox(height: 14),
           Expanded(

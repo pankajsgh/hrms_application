@@ -187,16 +187,31 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
   // ------------------------------------------------------------
 
   Widget _buildAddButton() {
+    final isMobile = MediaQuery.of(context).size.width < 500;
+
     return SizedBox(
-      height: 42,
+      height: 40,
       child: FilledButton.icon(
         onPressed: () => _edit(),
         icon: const Icon(
           Icons.person_add_alt_1_rounded,
-          size: 16,
+          size: 15,
         ),
-        label: const Text('Add Employee'),
+        label: Text(
+          isMobile ? 'Add' : 'Add Employee',
+          maxLines: 1,
+          softWrap: false,
+          style: const TextStyle(
+            fontSize: 12,
+            height: 1,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          minimumSize: const Size(0, 42),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.compact,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(9),
           ),

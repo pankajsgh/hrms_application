@@ -648,23 +648,24 @@ class AllEmployeesAttendanceViewState
   }) {
     final cs = Theme.of(context).colorScheme;
     final selected = _filter == filter;
+    final isMobile = MediaQuery.of(context).size.width < 500;
 
     return Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: EdgeInsets.all(isMobile ? 3 : 8),
       child: Material(
         color: selected
             ? color.withValues(alpha: 0.09)
             : cs.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(isMobile ? 9 : 12),
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(isMobile ? 9 : 12),
           onTap: () => _setFilter(filter),
           child: AnimatedContainer(
-            width: 200,
+            width: isMobile ? 155 : 200,
             duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.all(8),
+            padding: EdgeInsets.all(isMobile ? 6 : 8),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(isMobile ? 9 : 12),
               border: Border.all(
                 color: selected
                     ? color.withValues(alpha: 0.65)
@@ -674,17 +675,22 @@ class AllEmployeesAttendanceViewState
             child: Row(
               children: [
                 Container(
-                  height: 34,
-                  width: 34,
+                  height: isMobile ? 28 : 34,
+                  width: isMobile ? 28 : 34,
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(icon, size: 18, color: color),
+                  child: Icon(
+                    icon,
+                    size: isMobile ? 15 : 18,
+                    color: color,
+                  ),
                 ),
-                const SizedBox(width: 9),
+                SizedBox(width: isMobile ? 6 : 9),
                 Expanded(
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -692,24 +698,29 @@ class AllEmployeesAttendanceViewState
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: isMobile ? 9 : 10,
                           color: cs.onSurfaceVariant,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      SizedBox(height: isMobile ? 1 : 3),
                       Text(
                         value,
-                        style: const TextStyle(
-                          fontSize: 17,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: isMobile ? 14 : 17,
+                          height: 1.1,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       if (subtitle != null)
                         Text(
                           subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 8,
+                            fontSize: isMobile ? 7 : 8,
                             color: cs.onSurfaceVariant,
                           ),
                         ),
@@ -719,7 +730,7 @@ class AllEmployeesAttendanceViewState
                 if (selected)
                   Icon(
                     Icons.check_circle_rounded,
-                    size: 15,
+                    size: isMobile ? 12 : 15,
                     color: color,
                   ),
               ],
@@ -1186,7 +1197,7 @@ class AllEmployeesAttendanceViewState
       builder: (context, constraints) {
         final columns = constraints.maxWidth >= 1150
             ? 3
-            : constraints.maxWidth >= 700
+            : constraints.maxWidth >= 600
             ? 2
             : 1;
 

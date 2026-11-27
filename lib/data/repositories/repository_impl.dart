@@ -82,7 +82,6 @@ class Repo {
         );
 
       case StorageMode.localAndApi:
-      // First save in SQLite.
         final localId = await _local.saveData(
           tableOrEndpoint,
           query,

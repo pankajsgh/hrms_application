@@ -38,6 +38,9 @@ class RecruitmentRepository {
         ? data.toMap()
         : Map<String, Object?>.from(data as Map);
 
+    map.remove('cands');
+    map.remove('creator_name');
+
     final admin = Session.isAdmin;
     final now = ymd(DateTime.now());
 
@@ -59,6 +62,9 @@ class RecruitmentRepository {
     final map = data is JobEntity
         ? data.toMap()
         : Map<String, Object?>.from(data as Map);
+
+    map.remove('cands');
+    map.remove('creator_name');
 
     if (currentApproval == 'Rejected' && !Session.isAdmin) {
       map['approval'] = 'Pending';
@@ -181,6 +187,10 @@ class RecruitmentRepository {
     final map = data is CandidateEntity
         ? data.toMap()
         : Map<String, Object?>.from(data as Map);
+
+    map.remove('job_title');
+    map.remove('job_department');
+    map.remove('next_interview');
 
     await Repo.saveData(
       'candidates',
