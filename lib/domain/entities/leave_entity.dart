@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class LeaveEntity {
   final int? id;
   final int employeeId;
@@ -139,6 +141,7 @@ class LeaveBalanceEntity {
   final int paid;
   final double used;
   final double pending;
+  final List<LeaveApplicationEntity> applications;
 
   const LeaveBalanceEntity({
     required this.id,
@@ -147,38 +150,97 @@ class LeaveBalanceEntity {
     required this.paid,
     required this.used,
     required this.pending,
+    this.applications = const [],
   });
 
-  factory LeaveBalanceEntity.fromMap(Map<String, Object?> map) => LeaveBalanceEntity(
-        id: (map['id'] as num?)?.toInt() ?? 0,
-        name: (map['name'] ?? '').toString(),
-        daysPerYear: (map['days_per_year'] as num?)?.toDouble() ?? 0,
-        paid: (map['paid'] as num?)?.toInt() ?? 0,
-        used: (map['used'] as num?)?.toDouble() ?? 0,
-        pending: (map['pending'] as num?)?.toDouble() ?? 0,
-      );
+  double get available => daysPerYear - used - pending;
+
+  factory LeaveBalanceEntity.fromMap(Map<String, Object?> map) {
+    final rawApplications = map['applications'];
+
+    final List<dynamic> applicationList = rawApplications is String
+        ? (jsonDecode(rawApplications) as List<dynamic>)
+        : rawApplications is List
+        ? rawApplications
+        : [];
+
+    return LeaveBalanceEntity(
+      id: (map['id'] as num?)?.toInt() ?? 0,
+      name: (map['name'] ?? '').toString(),
+      daysPerYear: (map['days_per_year'] as num?)?.toDouble() ?? 0,
+      paid: (map['paid'] as num?)?.toInt() ?? 0,
+      used: (map['used'] as num?)?.toDouble() ?? 0,
+      pending: (map['pending'] as num?)?.toDouble() ?? 0,
+      applications: applicationList
+          .map((e) => LeaveApplicationEntity.fromMap(
+        Map<String, Object?>.from(e as Map),
+      ))
+          .toList(),
+    );
+  }
 
   Map<String, Object?> toMap() => {
-        'id': id,
-        'name': name,
-        'days_per_year': daysPerYear,
-        'paid': paid,
-        'used': used,
-        'pending': pending,
-      };
+    'id': id,
+    'name': name,
+    'days_per_year': daysPerYear,
+    'paid': paid,
+    'used': used,
+    'pending': pending,
+    'applications': applications.map((e) => e.toMap()).toList(),
+  };
 
   Object? operator [](String key) => toMap()[key];
-  String s(String key, [String def = '']) => toMap()[key]?.toString() ?? def;
+
+  String s(String key, [String def = '']) =>
+      toMap()[key]?.toString() ?? def;
+
   int? i(String key) {
     final val = toMap()[key];
-    if (val is int) return val;
     if (val is num) return val.toInt();
     return int.tryParse(val?.toString() ?? '');
   }
+
   double d(String key, [double def = 0.0]) {
     final val = toMap()[key];
-    if (val is double) return val;
     if (val is num) return val.toDouble();
     return double.tryParse(val?.toString() ?? '') ?? def;
   }
+}
+
+class LeaveApplicationEntity {
+  final int id;
+  final String startDate;
+  final String endDate;
+  final double days;
+  final String status;
+  final String? reason;
+
+  const LeaveApplicationEntity({
+    required this.id,
+    required this.startDate,
+    required this.endDate,
+    required this.days,
+    required this.status,
+    this.reason,
+  });
+
+  factory LeaveApplicationEntity.fromMap(Map<String, Object?> map) {
+    return LeaveApplicationEntity(
+      id: (map['id'] as num?)?.toInt() ?? 0,
+      startDate: (map['startDate'] ?? '').toString(),
+      endDate: (map['endDate'] ?? '').toString(),
+      days: (map['days'] as num?)?.toDouble() ?? 0,
+      status: (map['status'] ?? '').toString(),
+      reason: map['reason']?.toString(),
+    );
+  }
+
+  Map<String, Object?> toMap() => {
+    'id': id,
+    'startDate': startDate,
+    'endDate': endDate,
+    'days': days,
+    'status': status,
+    'reason': reason,
+  };
 }

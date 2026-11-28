@@ -31,7 +31,7 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
   List<AttendanceEntity> _records = [];
 
   // LeaveRepository still returns Rec.
-  List<Rec> _balances = [];
+  List<LeaveBalanceEntity> _balances = [];
 
   Set<String> _holidays = {};
 
@@ -69,9 +69,7 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
         _records = List<AttendanceEntity>.from(results[0] as List);
         _holidays = Set<String>.from(results[1] as Set);
 
-        _balances = (results[2] as List<LeaveBalanceEntity>)
-            .map((balance) => balance.toMap())
-            .toList();
+        _balances = (results[2] as List<LeaveBalanceEntity>);
 
         _todayRecord = results[3] as AttendanceEntity?;
         _loading = false;
@@ -950,20 +948,20 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
 
   Widget _responsiveContent(double width) {
     final todayCard = _todayCard();
-
     final leaveCard = LeaveBalanceSection(
       balances: _balances,
       year: _year,
     );
-
     final calendarCard = _calendar();
 
     // Desktop and tablet
     if (width >= 620) {
+      final rightWidth = (width * 0.38).clamp(260.0, 600.0);
+
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Left side: Attendance and Calendar vertically.
+          // Left section
           Expanded(
             child: ListView(
               padding: const EdgeInsets.only(bottom: 16),
@@ -977,9 +975,9 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
 
           const SizedBox(width: 12),
 
-          // Right side: Leave Balance.
+          // Right section
           SizedBox(
-            width: width >= 1000 ? 280 : 260,
+            width: rightWidth,
             child: ListView(
               padding: const EdgeInsets.only(bottom: 16),
               children: [
@@ -991,7 +989,7 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
       );
     }
 
-    // Mobile: All cards vertically.
+    // Mobile
     return ListView(
       padding: const EdgeInsets.only(bottom: 16),
       children: [
@@ -1002,8 +1000,7 @@ class _AttendanceFeaturePageState extends State<AttendanceFeaturePage> {
         leaveCard,
       ],
     );
-  }
-  Widget _myAttendance() {
+  }  Widget _myAttendance() {
     return LayoutBuilder(
       builder: (context, constraints) {
         return RefreshIndicator(

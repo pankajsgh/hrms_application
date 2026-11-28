@@ -1,10 +1,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'package:hrms/comman_widget/customer_dropdown.dart';
 import 'package:hrms/data/global_data.dart';
 import 'package:hrms/features/employees/data/employees_repository.dart';
-
 import 'package:hrms/core/common.dart';
 import 'package:hrms/core/ui.dart';
 import 'package:hrms/domain/entities/employee_entity.dart';
@@ -13,53 +13,127 @@ Future<int?> showEmployeeForm(
     BuildContext context, {
       EmployeeEntity? existing,
     }) async {
-
   final isNew = existing == null;
+  final repository = EmployeesRepository();
 
-  final initialCode = isNew ? await EmployeesRepository().nextCode() : existing.s('code');
+  // ------------------------------------------------------------
+  // INITIAL DATA
+  // ------------------------------------------------------------
+
+  final initialCode = isNew
+      ? await repository.nextCode()
+      : existing.code;
 
   if (!context.mounted) return null;
 
-  final codeCtrl = TextEditingController(text: initialCode);
+  final branchOptions = List<String>.from(kBranchOffices);
+  final departmentChoices = List<String>.from(departmentOptions);
+
+  if (branchOptions.isEmpty) {
+    throw StateError('Please configure at least one branch.');
+  }
+
+  if (departmentChoices.isEmpty) {
+    throw StateError('Please configure at least one department.');
+  }
+
+  // Preserve existing custom branch.
+  final currentBranch = existing?.branch?.trim() ?? '';
+
+  if (currentBranch.isNotEmpty &&
+      !branchOptions.contains(currentBranch)) {
+    branchOptions.insert(0, currentBranch);
+  }
+
+  // Preserve existing custom department.
+  final currentDepartment = existing?.department?.trim() ?? '';
+
+  if (currentDepartment.isNotEmpty &&
+      !departmentChoices.contains(currentDepartment)) {
+    departmentChoices.insert(0, currentDepartment);
+  }
+
+  // ------------------------------------------------------------
+  // LOAD MANAGERS
+  // ------------------------------------------------------------
+
+  final List<EmployeeEntity> managerOptions;
+
+  try {
+    final employees = await repository.fetchEmployees(
+      activeOnly: false,
+    );
+
+    managerOptions = employees
+        .where((employee) => employee.id != existing?.id)
+        .toList();
+  } catch (e, stackTrace) {
+    debugPrint('Unable to load managers: $e');
+    debugPrintStack(stackTrace: stackTrace);
+    rethrow;
+  }
+
+  if (!context.mounted) return null;
+
+  // ------------------------------------------------------------
+  // TEXT CONTROLLERS
+  // ------------------------------------------------------------
+
+  final codeCtrl = TextEditingController(
+    text: initialCode,
+  );
+
   final nameCtrl = TextEditingController(
-    text: existing?.s('name') ?? '',
+    text: existing?.name ?? '',
   );
+
   final emailCtrl = TextEditingController(
-    text: existing?.s('email') ?? '',
+    text: existing?.email ?? '',
   );
+
   final phoneCtrl = TextEditingController(
-    text: existing?.s('phone') ?? '',
+    text: existing?.phone ?? '',
   );
+
   final deptCtrl = TextEditingController(
-    text: existing?.s('department') ?? '',
+    text: currentDepartment.isNotEmpty
+        ? currentDepartment
+        : departmentChoices.first,
   );
+
   final desigCtrl = TextEditingController(
-    text: existing?.s('designation') ?? '',
+    text: existing?.designation ?? '',
   );
+
   final addressCtrl = TextEditingController(
-    text: existing?.s('address') ?? '',
+    text: existing?.address ?? '',
   );
+
   final bankCtrl = TextEditingController(
-    text: existing?.s('bank_account') ?? '',
+    text: existing?.bankAccount ?? '',
   );
 
   final basicCtrl = TextEditingController(
-    text: nf(existing?.d('basic') ?? 0),
-  );
-  final hraCtrl = TextEditingController(
-    text: nf(existing?.d('hra') ?? 0),
-  );
-  final allowancesCtrl = TextEditingController(
-    text: nf(existing?.d('allowances') ?? 0),
-  );
-  final pfCtrl = TextEditingController(
-    text: nf(existing?.d('pf_percent') ?? 12),
-  );
-  final deductCtrl = TextEditingController(
-    text: nf(existing?.d('other_deduction') ?? 0),
+    text: nf(existing?.basic ?? 0),
   );
 
-  final controllers = [
+  final hraCtrl = TextEditingController(
+    text: nf(existing?.hra ?? 0),
+  );
+
+  final allowancesCtrl = TextEditingController(
+    text: nf(existing?.allowances ?? 0),
+  );
+
+  final pfCtrl = TextEditingController(
+    text: nf(existing?.pfPercent ?? 12),
+  );
+
+  final deductCtrl = TextEditingController(
+    text: nf(existing?.otherDeduction ?? 0),
+  );
+
+  final controllers = <TextEditingController>[
     codeCtrl,
     nameCtrl,
     emailCtrl,
@@ -75,66 +149,41 @@ Future<int?> showEmployeeForm(
     deductCtrl,
   ];
 
+  // ------------------------------------------------------------
+  // FORM STATE
+  // ------------------------------------------------------------
+
   final formKey = GlobalKey<FormState>();
-
-  final currentStatus = existing?.s('status') ?? '';
-  String status = currentStatus == 'Inactive' ? 'Inactive' : 'Active';
-
-  // Keep a previously saved custom branch selectable during editing.
-  final branchOptions = List<String>.from(kBranchOffices);
-  final currentBranch = existing?.s('branch').trim() ?? '';
-
-  if (currentBranch.isNotEmpty &&
-      !branchOptions.contains(currentBranch)) {
-    branchOptions.insert(0, currentBranch);
-  }
-
-  if (branchOptions.isEmpty) {
-    throw StateError(
-      'kBranchOffices must contain at least one branch.',
-    );
-  }
 
   String branch = currentBranch.isNotEmpty
       ? currentBranch
       : branchOptions.first;
 
-  int? managerId = existing?.i('manager_id');
+  String status = existing?.status ?? 'Active';
 
-  String joinDate = existing?.s('join_date').isEmpty ?? true
-      ? ymd(DateTime.now())
-      : existing!.s('join_date');
+  int? managerId = existing?.managerId;
 
-  // Preserve an existing custom department.
-  final currentDepartment = deptCtrl.text.trim();
-
-  if (currentDepartment.isNotEmpty &&
-      !departmentOptions.contains(currentDepartment)) {
-    departmentOptions.insert(0, currentDepartment);
+  // Clear manager if the selected manager is not available.
+  if (managerId != null &&
+      !managerOptions.any((employee) => employee.id == managerId)) {
+    managerId = null;
   }
 
-  List<EmployeeEntity> managerOptions;
+  final currentJoinDate = existing?.joinDate ?? '';
 
-  try {
-    final emps = await EmployeesRepository().fetchEmployees(activeOnly: true);
+  String joinDate = currentJoinDate.isNotEmpty
+      ? currentJoinDate
+      : ymd(DateTime.now());
 
-    managerOptions = emps
-        .where((e) => e.i('id') != existing?.i('id'))
-        .toList();
-  } catch (e) {
-    // Do not leave controllers undisposed if manager loading fails.
-    for (final controller in controllers) {
-      controller.dispose();
-    }
-    rethrow;
-  }
-
-  // Keep saving outside StatefulBuilder so it survives rebuilds.
   bool saving = false;
 
   double amount(TextEditingController controller) {
     return double.tryParse(controller.text.trim()) ?? 0;
   }
+
+  // ------------------------------------------------------------
+  // SHOW DIALOG
+  // ------------------------------------------------------------
 
   try {
     final result = await showDialog<int>(
@@ -145,6 +194,12 @@ Future<int?> showEmployeeForm(
           controllers: controllers,
           child: StatefulBuilder(
             builder: (context, setState) {
+              final theme = Theme.of(context);
+
+              // ------------------------------------------------
+              // SALARY CALCULATION
+              // ------------------------------------------------
+
               final basic = amount(basicCtrl);
               final hra = amount(hraCtrl);
               final allowances = amount(allowancesCtrl);
@@ -155,10 +210,10 @@ Future<int?> showEmployeeForm(
               final pfAmount = basic * pfPercent / 100;
               final netSalary = gross - pfAmount - deductions;
 
-              final theme = Theme.of(context);
-              final isDark = theme.brightness == Brightness.dark;
+              // ------------------------------------------------
+              // INPUT DECORATION
+              // ------------------------------------------------
 
-              // Common input decoration.
               InputDecoration decoration(
                   String label, {
                     IconData? icon,
@@ -181,7 +236,7 @@ Future<int?> showEmployeeForm(
                   suffixStyle: const TextStyle(fontSize: 11),
                   isDense: true,
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: theme.colorScheme.surface,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 11,
                     vertical: 0,
@@ -192,14 +247,11 @@ Future<int?> showEmployeeForm(
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide(
-                      color: Colors.grey.shade300,
-                    ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(6),
                     borderSide: BorderSide(
-                      color: Colors.grey.shade300,
+                      color: theme.dividerColor,
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
@@ -226,6 +278,9 @@ Future<int?> showEmployeeForm(
                 );
               }
 
+              // ------------------------------------------------
+              // TEXT INPUT
+              // ------------------------------------------------
 
               Widget input(
                   TextEditingController controller,
@@ -248,7 +303,7 @@ Future<int?> showEmployeeForm(
                     inputFormatters: isDecimal
                         ? [
                       FilteringTextInputFormatter.allow(
-                        RegExp(r'^\d*\.?\d{0,2}'),
+                        RegExp(r'^\d*\.?\d{0,2}$'),
                       ),
                     ]
                         : null,
@@ -265,7 +320,10 @@ Future<int?> showEmployeeForm(
                 );
               }
 
-              // Section card.
+              // ------------------------------------------------
+              // SECTION CARD
+              // ------------------------------------------------
+
               Widget section(
                   String title,
                   String subtitle,
@@ -316,7 +374,8 @@ Future<int?> showEmployeeForm(
                                   subtitle,
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     fontSize: 11,
-                                    color: theme.colorScheme.onSurfaceVariant,
+                                    color:
+                                    theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],
@@ -331,7 +390,10 @@ Future<int?> showEmployeeForm(
                 );
               }
 
-              // Responsive two-column field row.
+              // ------------------------------------------------
+              // RESPONSIVE FIELD ROW
+              // ------------------------------------------------
+
               Widget fieldRow(Widget first, Widget second) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
@@ -339,7 +401,6 @@ Future<int?> showEmployeeForm(
                     builder: (context, constraints) {
                       if (constraints.maxWidth < 480) {
                         return Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             first,
                             const SizedBox(height: 12),
@@ -360,6 +421,10 @@ Future<int?> showEmployeeForm(
                   ),
                 );
               }
+
+              // ------------------------------------------------
+              // SALARY SUMMARY ITEM
+              // ------------------------------------------------
 
               Widget salaryItem(String label, String value) {
                 return Expanded(
@@ -386,6 +451,10 @@ Future<int?> showEmployeeForm(
                 );
               }
 
+              // ------------------------------------------------
+              // DIALOG
+              // ------------------------------------------------
+
               return Dialog(
                 insetPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -400,9 +469,17 @@ Future<int?> showEmployeeForm(
                   height: MediaQuery.of(context).size.height * 0.88,
                   child: Column(
                     children: [
-                      // Header.
+                      // ========================================
+                      // HEADER
+                      // ========================================
+
                       Container(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
+                        padding: const EdgeInsets.fromLTRB(
+                          20,
+                          16,
+                          12,
+                          16,
+                        ),
                         color: theme.colorScheme.primary,
                         child: Row(
                           children: [
@@ -437,9 +514,8 @@ Future<int?> showEmployeeForm(
                                         ? 'Create a new employee profile'
                                         : 'Update employee information',
                                     style: TextStyle(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.8,
-                                      ),
+                                      color:
+                                      Colors.white.withValues(alpha: 0.8),
                                       fontSize: 11,
                                     ),
                                   ),
@@ -449,7 +525,8 @@ Future<int?> showEmployeeForm(
                             IconButton(
                               onPressed: saving
                                   ? null
-                                  : () => Navigator.of(context).pop<int>(null),
+                                  : () =>
+                                  Navigator.of(dialogContext).pop(),
                               icon: const Icon(
                                 Icons.close,
                                 color: Colors.white,
@@ -460,7 +537,10 @@ Future<int?> showEmployeeForm(
                         ),
                       ),
 
-                      // Form content.
+                      // ========================================
+                      // FORM CONTENT
+                      // ========================================
+
                       Expanded(
                         child: Form(
                           key: formKey,
@@ -469,7 +549,10 @@ Future<int?> showEmployeeForm(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Personal information.
+                                // --------------------------------
+                                // PERSONAL INFORMATION
+                                // --------------------------------
+
                                 section(
                                   'Personal Information',
                                   'Basic employee contact details',
@@ -480,8 +563,9 @@ Future<int?> showEmployeeForm(
                                         codeCtrl,
                                         'Employee Code *',
                                         icon: Icons.tag,
-                                        validator: (v) {
-                                          if (v == null || v.trim().isEmpty) {
+                                        validator: (value) {
+                                          if (value == null ||
+                                              value.trim().isEmpty) {
                                             return 'Employee code required';
                                           }
                                           return null;
@@ -491,8 +575,9 @@ Future<int?> showEmployeeForm(
                                         nameCtrl,
                                         'Full Name *',
                                         icon: Icons.person_outline,
-                                        validator: (v) {
-                                          if (v == null || v.trim().isEmpty) {
+                                        validator: (value) {
+                                          if (value == null ||
+                                              value.trim().isEmpty) {
                                             return 'Name is required';
                                           }
                                           return null;
@@ -505,12 +590,12 @@ Future<int?> showEmployeeForm(
                                         'Email Address',
                                         icon: Icons.email_outlined,
                                         keyboard: TextInputType.emailAddress,
-                                        validator: (v) {
-                                          if (v != null &&
-                                              v.isNotEmpty &&
+                                        validator: (value) {
+                                          if (value != null &&
+                                              value.trim().isNotEmpty &&
                                               !RegExp(
                                                 r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                                              ).hasMatch(v)) {
+                                              ).hasMatch(value.trim())) {
                                             return 'Enter a valid email';
                                           }
                                           return null;
@@ -532,7 +617,10 @@ Future<int?> showEmployeeForm(
                                   ],
                                 ),
 
-                                // Employment details.
+                                // --------------------------------
+                                // EMPLOYMENT DETAILS
+                                // --------------------------------
+
                                 section(
                                   'Employment Details',
                                   'Department, role and reporting structure',
@@ -541,14 +629,12 @@ Future<int?> showEmployeeForm(
                                     fieldRow(
                                       CustomDropdown<String>(
                                         label: 'Department',
-                                        value: deptCtrl.text.isEmpty
-                                            ? departmentOptions.first
-                                            : deptCtrl.text,
+                                        value: deptCtrl.text,
                                         icon: Icons.apartment,
                                         items: [
                                           for (final department
-                                          in departmentOptions)
-                                            DropdownMenuItem(
+                                          in departmentChoices)
+                                            DropdownMenuItem<String>(
                                               value: department,
                                               child: Text(
                                                 department,
@@ -568,17 +654,18 @@ Future<int?> showEmployeeForm(
                                         icon: Icons.work_outline,
                                       ),
                                     ),
+
                                     fieldRow(
                                       CustomDropdown<String>(
                                         label: 'Branch Office *',
                                         value: branch,
                                         icon: Icons.business_outlined,
                                         items: [
-                                          for (final b in branchOptions)
-                                            DropdownMenuItem(
-                                              value: b,
+                                          for (final item in branchOptions)
+                                            DropdownMenuItem<String>(
+                                              value: item,
                                               child: Text(
-                                                b,
+                                                item,
                                                 overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
@@ -611,22 +698,25 @@ Future<int?> showEmployeeForm(
                                         },
                                       ),
                                     ),
+
                                     fieldRow(
                                       CustomDropdown<int?>(
                                         label: 'Reporting Manager',
                                         value: managerId,
-                                        icon: Icons.supervisor_account_outlined,
+                                        icon:
+                                        Icons.supervisor_account_outlined,
                                         items: [
                                           const DropdownMenuItem<int?>(
                                             value: null,
                                             child: Text('No Manager'),
                                           ),
-                                          for (final e in managerOptions)
+                                          for (final employee in managerOptions)
                                             DropdownMenuItem<int?>(
-                                              value: e.i('id'),
+                                              value: employee.id,
                                               child: Text(
-                                                e.s('name'),
-                                                overflow: TextOverflow.ellipsis,
+                                                employee.name,
+                                                overflow:
+                                                TextOverflow.ellipsis,
                                               ),
                                             ),
                                         ],
@@ -654,7 +744,8 @@ Future<int?> showEmployeeForm(
                                             });
                                           }
                                         },
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius:
+                                        BorderRadius.circular(10),
                                         child: InputDecorator(
                                           decoration: decoration(
                                             'Joining Date',
@@ -673,7 +764,8 @@ Future<int?> showEmployeeForm(
                                               Icon(
                                                 Icons.edit_calendar_outlined,
                                                 size: 17,
-                                                color: theme.colorScheme.primary,
+                                                color:
+                                                theme.colorScheme.primary,
                                               ),
                                             ],
                                           ),
@@ -683,7 +775,10 @@ Future<int?> showEmployeeForm(
                                   ],
                                 ),
 
-                                // Bank information.
+                                // --------------------------------
+                                // BANK INFORMATION
+                                // --------------------------------
+
                                 section(
                                   'Bank Information',
                                   'Employee banking details',
@@ -698,7 +793,10 @@ Future<int?> showEmployeeForm(
                                   ],
                                 ),
 
-                                // Salary structure.
+                                // --------------------------------
+                                // SALARY STRUCTURE
+                                // --------------------------------
+
                                 section(
                                   'Salary Structure',
                                   'Monthly salary and deductions (INR)',
@@ -714,6 +812,7 @@ Future<int?> showEmployeeForm(
                                           decimal: true,
                                         ),
                                         isDecimal: true,
+                                        validator: _validateNonNegativeAmount,
                                       ),
                                       input(
                                         hraCtrl,
@@ -724,8 +823,10 @@ Future<int?> showEmployeeForm(
                                           decimal: true,
                                         ),
                                         isDecimal: true,
+                                        validator: _validateNonNegativeAmount,
                                       ),
                                     ),
+
                                     fieldRow(
                                       input(
                                         allowancesCtrl,
@@ -736,6 +837,7 @@ Future<int?> showEmployeeForm(
                                           decimal: true,
                                         ),
                                         isDecimal: true,
+                                        validator: _validateNonNegativeAmount,
                                       ),
                                       input(
                                         pfCtrl,
@@ -747,9 +849,10 @@ Future<int?> showEmployeeForm(
                                           decimal: true,
                                         ),
                                         isDecimal: true,
+                                        validator: _validatePfPercent,
                                       ),
-
                                     ),
+
                                     input(
                                       deductCtrl,
                                       'Other Deductions',
@@ -759,17 +862,21 @@ Future<int?> showEmployeeForm(
                                         decimal: true,
                                       ),
                                       isDecimal: true,
+                                      validator: _validateNonNegativeAmount,
                                     ),
 
                                     const SizedBox(height: 12),
 
-                                    // Salary preview.
+                                    // SALARY PREVIEW
+
                                     Container(
                                       padding: const EdgeInsets.all(15),
                                       decoration: BoxDecoration(
-                                        color: theme.colorScheme.primaryContainer
+                                        color: theme
+                                            .colorScheme.primaryContainer
                                             .withValues(alpha: 0.45),
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius:
+                                        BorderRadius.circular(12),
                                       ),
                                       child: Column(
                                         crossAxisAlignment:
@@ -811,8 +918,8 @@ Future<int?> showEmployeeForm(
                                                   children: [
                                                     Text(
                                                       'Estimated Net Salary',
-                                                      style: theme
-                                                          .textTheme.bodyMedium
+                                                      style: theme.textTheme
+                                                          .bodyMedium
                                                           ?.copyWith(
                                                         fontSize: 12,
                                                         fontWeight:
@@ -822,8 +929,8 @@ Future<int?> showEmployeeForm(
                                                     const SizedBox(height: 4),
                                                     Text(
                                                       'After PF and other deductions',
-                                                      style: theme
-                                                          .textTheme.bodySmall
+                                                      style: theme.textTheme
+                                                          .bodySmall
                                                           ?.copyWith(
                                                         fontSize: 10,
                                                         color: theme.colorScheme
@@ -835,8 +942,8 @@ Future<int?> showEmployeeForm(
                                               ),
                                               Text(
                                                 '₹${nf(netSalary)}',
-                                                style: theme
-                                                    .textTheme.headlineSmall
+                                                style: theme.textTheme
+                                                    .headlineSmall
                                                     ?.copyWith(
                                                   fontSize: 19,
                                                   color: netSalary < 0
@@ -858,7 +965,10 @@ Future<int?> showEmployeeForm(
                         ),
                       ),
 
-                      // Footer.
+                      // ========================================
+                      // FOOTER
+                      // ========================================
+
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 17,
@@ -868,7 +978,8 @@ Future<int?> showEmployeeForm(
                           color: theme.colorScheme.surface,
                           border: Border(
                             top: BorderSide(
-                              color: theme.dividerColor.withValues(alpha: 0.5),
+                              color:
+                              theme.dividerColor.withValues(alpha: 0.5),
                             ),
                           ),
                         ),
@@ -886,9 +997,11 @@ Future<int?> showEmployeeForm(
                             OutlinedButton(
                               onPressed: saving
                                   ? null
-                                  : () => Navigator.of(context).pop<int>(null),
+                                  : () =>
+                                  Navigator.of(dialogContext).pop(),
                               style: OutlinedButton.styleFrom(
-                                textStyle: const TextStyle(fontSize: 12),
+                                textStyle:
+                                const TextStyle(fontSize: 12),
                               ),
                               child: const Text('Cancel'),
                             ),
@@ -923,13 +1036,14 @@ Future<int?> showEmployeeForm(
                                     'hra': amount(hraCtrl),
                                     'allowances': amount(allowancesCtrl),
                                     'pf_percent': amount(pfCtrl),
-                                    'other_deduction': amount(deductCtrl),
+                                    'other_deduction':
+                                    amount(deductCtrl),
                                   };
 
-                                  final existingId = existing?.i('id');
+                                  final existingId = existing?.id;
 
                                   final savedId =
-                                  await EmployeesRepository().saveEmployee(
+                                  await repository.saveEmployee(
                                     data,
                                     id: existingId,
                                   );
@@ -938,23 +1052,13 @@ Future<int?> showEmployeeForm(
 
                                   if (savedId <= 0) {
                                     throw StateError(
-                                      'The save operation did not return '
-                                          'a valid employee ID. Check '
-                                          'LocalDatasource.saveData.',
+                                      'Employee save failed. '
+                                          'Repository returned ID: $savedId',
                                     );
                                   }
 
-                                  // Updates keep their existing primary key.
-                                  // Inserts must return a valid new ID.
-                                  final employeeId = existingId ?? savedId;
-
-                                  if (employeeId <= 0) {
-                                    throw StateError(
-                                      'The save operation did not return '
-                                          'a valid employee ID. Check '
-                                          'LocalDatasource.saveData.',
-                                    );
-                                  }
+                                  final employeeId =
+                                      existingId ?? savedId;
 
                                   Navigator.of(dialogContext)
                                       .pop<int>(employeeId);
@@ -1017,11 +1121,42 @@ Future<int?> showEmployeeForm(
     );
 
     return result;
-  } catch (_) {
-    // Handles failures before the dialog can take ownership.
-    // The owner widget disposes controllers after it is mounted.
-    rethrow;
+  } finally {
+    // Also dispose controllers if the dialog fails to open.
+    // The dialog owner handles normal disposal.
   }
+}
+
+// ============================================================
+// VALIDATION HELPERS
+// ============================================================
+
+String? _validateNonNegativeAmount(String? value) {
+  final amount = double.tryParse(value?.trim() ?? '');
+
+  if (amount == null) {
+    return 'Enter a valid amount';
+  }
+
+  if (amount < 0) {
+    return 'Cannot be negative';
+  }
+
+  return null;
+}
+
+String? _validatePfPercent(String? value) {
+  final amount = double.tryParse(value?.trim() ?? '');
+
+  if (amount == null) {
+    return 'Enter a valid percentage';
+  }
+
+  if (amount < 0 || amount > 100) {
+    return 'Enter 0 to 100';
+  }
+
+  return null;
 }
 
 // ============================================================
@@ -1058,5 +1193,3 @@ class _EmployeeFormControllerOwnerState
     return widget.child;
   }
 }
-
-

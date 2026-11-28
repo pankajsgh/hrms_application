@@ -26,6 +26,7 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
 
   final TextEditingController _searchController =
   TextEditingController();
+
   final Debouncer _debouncer = Debouncer();
 
   String _statusFilter = 'All';
@@ -42,10 +43,10 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
 
   @override
   void dispose() {
+    _debouncer.dispose();
     _searchController.dispose();
     _controller.dispose();
     _specialDaysController.dispose();
-    _debouncer.dispose();
 
     super.dispose();
   }
@@ -60,11 +61,9 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
 
       await _controller.loadEmployees();
 
-      debugPrint('EMPLOYEES LOADED: ${_controller.rows.length}');
-
-      if (mounted) {
-        setState(() {});
-      }
+      debugPrint(
+        'EMPLOYEES LOADED: ${_controller.rows.length}',
+      );
     } catch (e, st) {
       debugPrint('LOAD EMPLOYEES ERROR: $e\n$st');
 
@@ -79,6 +78,8 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
   // ------------------------------------------------------------
 
   Future<void> _edit([EmployeeEntity? employee]) async {
+    if (!Session.canEditEmployees) return;
+
     try {
       debugPrint('EDIT EMPLOYEE ID: ${employee?.id}');
 
@@ -108,11 +109,14 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
       }
     }
   }
+
   // ------------------------------------------------------------
   // ADD SPECIAL DAY
   // ------------------------------------------------------------
 
   Future<void> _addSpecialDay(EmployeeEntity employee) async {
+    if (!Session.isHr) return;
+
     debugPrint('ADD SPECIAL DAY: ${employee.id}');
 
     try {
@@ -146,7 +150,8 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
         controller: _searchController,
         onChanged: (value) {
           _debouncer.run(() {
-            _controller.setSearchQuery(value);
+            if (!mounted) return;
+            _controller.setSearchQuery(value.trim());
           });
         },
         style: const TextStyle(fontSize: 12),
@@ -156,12 +161,30 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
             Icons.search_rounded,
             size: 18,
           ),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+            tooltip: 'Clear search',
+            onPressed: () {
+              _debouncer.dispose();
+
+              _searchController.clear();
+              _controller.setSearchQuery('');
+
+              setState(() {});
+            },
+            icon: const Icon(
+              Icons.close_rounded,
+              size: 16,
+            ),
+          )
+              : null,
           filled: true,
           fillColor:
           cs.surfaceContainerHighest.withValues(alpha: 0.35),
           isDense: true,
-          contentPadding:
-          const EdgeInsets.symmetric(horizontal: 10),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(9),
             borderSide: BorderSide.none,
@@ -187,6 +210,10 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
   // ------------------------------------------------------------
 
   Widget _buildAddButton() {
+    if (!Session.canEditEmployees) {
+      return const SizedBox.shrink();
+    }
+
     final isMobile = MediaQuery.of(context).size.width < 500;
 
     return SizedBox(
@@ -227,9 +254,10 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
   Widget _buildStatusFilterBar(ColorScheme cs) {
     const filters = ['All', 'Active', 'Inactive'];
 
-    return Row(
+    return Wrap(
+      spacing: 8,
       children: [
-        for (final filter in filters) ...[
+        for (final filter in filters)
           ChoiceChip(
             label: Text(filter),
             selected: _statusFilter == filter,
@@ -257,8 +285,6 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
               ),
             ),
           ),
-          const SizedBox(width: 8),
-        ],
       ],
     );
   }
@@ -272,7 +298,19 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
       ColorScheme cs,
       ) {
     final isActive =
-        emp.s('status').trim().toLowerCase() == 'active';
+        emp.status.trim().toLowerCase() == 'active';
+
+    final branch = emp.branch?.isNotEmpty == true
+        ? emp.branch!
+        : '—';
+
+    final department = emp.department?.isNotEmpty == true
+        ? emp.department!
+        : '—';
+
+    final designation = emp.designation?.isNotEmpty == true
+        ? emp.designation!
+        : '—';
 
     return Material(
       color: Colors.white,
@@ -285,9 +323,14 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => _edit(emp),
+        onTap: Session.canEditEmployees
+            ? () => _edit(emp)
+            : null,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
           child: Row(
             children: [
               Container(
@@ -309,7 +352,9 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
                   ),
                 ),
               ),
+
               const SizedBox(width: 14),
+
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -335,9 +380,12 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
                         ),
                       ],
                     ),
+
                     const SizedBox(height: 6),
+
                     Text(
-                      '${emp.code}  •  ${emp.department}  •  ${emp.designation}  •  Branch: ${emp.s('branch').isEmpty ? '—' : emp.s('branch')}',
+                      '${emp.code}  •  $department  •  '
+                          '$designation  •  Branch: $branch',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -348,28 +396,26 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
                   ],
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    tooltip: 'Edit Employee',
-                    icon: const Icon(
-                      Icons.edit_outlined,
-                      size: 18,
-                    ),
-                    onPressed: () => _edit(emp),
+
+              if (Session.canEditEmployees)
+                IconButton(
+                  tooltip: 'Edit Employee',
+                  icon: const Icon(
+                    Icons.edit_outlined,
+                    size: 18,
                   ),
-                  if (Session.isHr)
-                    IconButton(
-                      tooltip: 'Special Day',
-                      icon: const Icon(
-                        Icons.cake_outlined,
-                        size: 18,
-                      ),
-                      onPressed: () => _addSpecialDay(emp),
-                    ),
-                ],
-              ),
+                  onPressed: () => _edit(emp),
+                ),
+
+              if (Session.isHr)
+                IconButton(
+                  tooltip: 'Special Day',
+                  icon: const Icon(
+                    Icons.cake_outlined,
+                    size: 18,
+                  ),
+                  onPressed: () => _addSpecialDay(emp),
+                ),
             ],
           ),
         ),
@@ -393,18 +439,18 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
         }
 
         final employees = _controller.rows.where((emp) {
-          final status =
-          emp.s('status').trim().toLowerCase();
+          final status = emp.status.trim().toLowerCase();
 
-          if (_statusFilter == 'Active') {
-            return status == 'active';
+          switch (_statusFilter) {
+            case 'Active':
+              return status == 'active';
+
+            case 'Inactive':
+              return status == 'inactive';
+
+            default:
+              return true;
           }
-
-          if (_statusFilter == 'Inactive') {
-            return status != 'active';
-          }
-
-          return true;
         }).toList();
 
         if (employees.isEmpty) {
@@ -425,15 +471,14 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                if(Session.canEditEmployees)
-                FilledButton.icon(
-                  onPressed: () => _edit(),
-                  icon: const Icon(
-                    Icons.person_add_alt_1,
+                if (Session.canEditEmployees)
+                  FilledButton.icon(
+                    onPressed: () => _edit(),
+                    icon: const Icon(
+                      Icons.person_add_alt_1,
+                    ),
+                    label: const Text('Add Employee'),
                   ),
-                  label: const Text('Add Employee'),
-                ),
               ],
             ),
           );
@@ -442,7 +487,7 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
         return ListView.separated(
           padding: EdgeInsets.zero,
           itemCount: employees.length,
-          separatorBuilder: (_, __) =>
+          separatorBuilder: (_, value) =>
           const SizedBox(height: 10),
           itemBuilder: (context, index) {
             return _buildEmployeeCard(
@@ -462,6 +507,7 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     return PageBox(
       child: Column(
@@ -470,14 +516,28 @@ class _EmployeesFeaturePageState extends State<EmployeesFeaturePage> {
           Header(
             'Employees',
             actions: [
-              _buildSearchField(cs),
-              const SizedBox(width: 10),
+              if (!isMobile) ...[
+                _buildSearchField(cs),
+                const SizedBox(width: 10),
+              ],
               _buildAddButton(),
             ],
           ),
+
+          if (isMobile) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: _buildSearchField(cs),
+            ),
+          ],
+
           const SizedBox(height: 14),
+
           _buildStatusFilterBar(cs),
+
           const SizedBox(height: 14),
+
           Expanded(
             child: _buildContent(cs),
           ),

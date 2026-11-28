@@ -40,7 +40,6 @@ class RemoteDatasource {
       } else {
 
         final id =query['id'] ?? '';
-
         response = await _dioClient.put(
           '/$endpoint/$id',
           data: data,
@@ -54,7 +53,6 @@ class RemoteDatasource {
         if (responseData is Map && responseData['id'] != null) {
           return (responseData['id'] as num).toInt();
         }
-
         return 1;
       }
 

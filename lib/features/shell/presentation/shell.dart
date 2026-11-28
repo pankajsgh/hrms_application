@@ -61,13 +61,6 @@ class _ShellState extends State<Shell> {
           () => const DashboardFeaturePage(),
     ),
 
-    if (Session.canEditEmployees)
-      _Nav(
-        'Employees',
-        Icons.people_outline,
-            () => const EmployeesFeaturePage(),
-      ),
-
     _Nav(
       'Attendance',
       Icons.access_time,
@@ -79,6 +72,7 @@ class _ShellState extends State<Shell> {
       Icons.beach_access_outlined,
           () => const LeaveFeaturePage(),
     ),
+
 
     _Nav(
       'Payroll',
@@ -117,6 +111,13 @@ class _ShellState extends State<Shell> {
         'Reports',
         Icons.assessment_outlined,
             () => const ReportsFeaturePage(),
+      ),
+
+    if (Session.canEditEmployees)
+      _Nav(
+        'Employees',
+        Icons.people_outline,
+            () => const EmployeesFeaturePage(),
       ),
 
     if (Session.isAdmin)

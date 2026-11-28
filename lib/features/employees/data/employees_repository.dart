@@ -6,13 +6,14 @@ import 'package:hrms/data/repositories/repository_impl.dart';
 import 'package:hrms/domain/entities/employee_entity.dart';
 
 class EmployeesRepository {
-
+  // ============================================================
+  // FETCH EMPLOYEES
+  // ============================================================
 
   Future<List<EmployeeEntity>> fetchEmployees({
     String q = '',
     bool activeOnly = false,
-  }) async
-  {
+  }) async {
     final search = q.trim();
 
     final queryMap = {
@@ -63,13 +64,14 @@ class EmployeesRepository {
     return raw.map((r) => EmployeeEntity.fromMap(r)).toList();
   }
 
+  // ============================================================
+  // NEXT EMPLOYEE CODE
+  // ============================================================
 
   Future<String> nextCode() async {
-    if(StorageConfig.mode == StorageMode.apiOnly)
-      {
-        return 'EMP${(0 + 1).toString().padLeft(3, '0')}';
-
-      }
+    if (StorageConfig.mode == StorageMode.apiOnly) {
+      return 'EMP${(0 + 1).toString().padLeft(3, '0')}';
+    }
 
     final count = await LocalDatasource.dbCount(
       'SELECT COUNT(*) FROM employees',
@@ -78,10 +80,12 @@ class EmployeesRepository {
     return 'EMP${(count + 1).toString().padLeft(3, '0')}';
   }
 
+  // ============================================================
+  // SAVE EMPLOYEE
+  // ============================================================
+
   Future<int> saveEmployee(Map<String, Object?> data, {int? id}) async {
-    final query = id == null
-        ? <String, String>{}
-        : {'id': id.toString()};
+    final query = id == null ? <String, String>{} : {'id': id.toString()};
 
     return Repo.saveData(
       'employees',
@@ -90,6 +94,9 @@ class EmployeesRepository {
     );
   }
 
+  // ============================================================
+  // SCOPED EMPLOYEES
+  // ============================================================
 
   Future<List<EmployeeEntity>> scopeEmployees() async {
     final ids = await scopeIds();

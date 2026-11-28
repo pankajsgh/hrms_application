@@ -52,7 +52,6 @@ class Repo {
             return await _local.fetchData(localQuery);
           }
         }
-
         return await _local.fetchData(localQuery);
     }
   }

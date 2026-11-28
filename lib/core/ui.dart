@@ -82,7 +82,7 @@ class Panel extends StatelessWidget {
       color: cs.surface,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         side: BorderSide(color: cs.outlineVariant.withOpacity(0.6)),
       ),
       child: padding == null ? child : Padding(padding: padding!, child: child),
@@ -297,7 +297,7 @@ class StatCard extends StatelessWidget {
               height: 36,
               decoration: BoxDecoration(
                 color: color.withOpacity(0.14),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: color, size: 20),
             ),

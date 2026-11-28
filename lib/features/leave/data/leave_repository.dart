@@ -8,8 +8,7 @@ import 'package:hrms/data/repositories/repository_impl.dart';
 import 'package:hrms/domain/entities/leave_entity.dart';
 
 class LeaveRepository {
-  bool get _isLocal =>
-      StorageConfig.mode != StorageMode.apiOnly;
+  bool get _isLocal => StorageConfig.mode != StorageMode.apiOnly;
 
   // ============================================================
   // HELPERS
@@ -29,10 +28,7 @@ class LeaveRepository {
     return ymd(DateTime(value.year, value.month, value.day));
   }
 
-  Future<int> _count(
-      String sql,
-      List<Object?> args,
-      ) async {
+  Future<int> _count(String sql, List<Object?> args) async {
     if (!_isLocal) return 0;
     return LocalDatasource.dbCount(sql, args);
   }
@@ -45,7 +41,7 @@ class LeaveRepository {
     final raw = await Repo.queryOrLocal(
       'leave_types',
       {},
-          () => Db.db.query(
+      () => Db.db.query(
         'leave_types',
         orderBy: 'id ASC',
       ),
@@ -53,12 +49,24 @@ class LeaveRepository {
     final types = raw.map((r) => LeaveTypeEntity.fromMap(r)).toList();
 
     // Auto-ensure WFH and Field Work leave types exist
-    if (!types.any((t) => t.name.toLowerCase().contains('home') || t.name.toLowerCase().contains('wfh'))) {
-      await saveLeaveType({'name': 'Work From Home', 'days_per_year': 365, 'paid': 1});
+    if (!types.any((t) =>
+        t.name.toLowerCase().contains('home') ||
+        t.name.toLowerCase().contains('wfh'))) {
+      await saveLeaveType({
+        'name': 'Work From Home',
+        'days_per_year': 365,
+        'paid': 1,
+      });
       return leaveTypes();
     }
-    if (!types.any((t) => t.name.toLowerCase().contains('field') || t.name.toLowerCase().contains('outside'))) {
-      await saveLeaveType({'name': 'Work Outside (Field)', 'days_per_year': 365, 'paid': 1});
+    if (!types.any((t) =>
+        t.name.toLowerCase().contains('field') ||
+        t.name.toLowerCase().contains('outside'))) {
+      await saveLeaveType({
+        'name': 'Work Outside (Field)',
+        'days_per_year': 365,
+        'paid': 1,
+      });
       return leaveTypes();
     }
 
@@ -68,9 +76,9 @@ class LeaveRepository {
   Future<List<LeaveTypeEntity>> fetchLeaveTypes() => leaveTypes();
 
   Future<void> saveLeaveType(
-      Map<String, Object?> data, {
-        int? id,
-      }) async {
+    Map<String, Object?> data, {
+    int? id,
+  }) async {
     final name = (data['name'] ?? '').toString().trim();
     final days = _decimal(data['days_per_year']);
 
@@ -125,7 +133,7 @@ class LeaveRepository {
     return Repo.queryOrLocal(
       'holidays',
       {'year': '$year'},
-          () => Db.db.query(
+      () => Db.db.query(
         'holidays',
         where: 'substr(date, 1, 4) = ?',
         whereArgs: ['$year'],
@@ -140,7 +148,7 @@ class LeaveRepository {
     final rows = await Repo.queryOrLocal(
       'holidays',
       {},
-          () => Db.db.query('holidays'),
+      () => Db.db.query('holidays'),
     );
 
     return rows
@@ -156,7 +164,7 @@ class LeaveRepository {
         'from': _date(DateTime.now()),
         'limit': '$limit',
       },
-          () => Db.db.query(
+      () => Db.db.query(
         'holidays',
         where: 'date >= ?',
         whereArgs: [_date(DateTime.now())],
@@ -224,43 +232,53 @@ class LeaveRepository {
   // ============================================================
 
   Future<List<LeaveBalanceEntity>> balances(int emp, int year) async {
-    final raw = await Repo.queryOrLocal(
-      'balances',
-      {
-        'employee_id': '$emp',
-        'year': '$year',
-      },
-          () => Db.db.rawQuery(
-        '''
-        SELECT
-          t.id,
-          t.name,
-          t.days_per_year,
-          t.paid,
+    final raw = await Db.db.rawQuery(
+      '''
+  SELECT
+    t.id,
+    t.name,
+    t.days_per_year,
+    t.paid,
 
-          COALESCE((
-            SELECT SUM(l.days)
-            FROM leaves l
-            WHERE l.type_id = t.id
-              AND l.employee_id = ?
-              AND l.status = 'Approved'
-              AND substr(l.start_date, 1, 4) = ?
-          ), 0) AS used,
+    COALESCE((
+      SELECT SUM(l.days)
+      FROM leaves l
+      WHERE l.type_id = t.id
+        AND l.employee_id = ?
+        AND l.status = 'Approved'
+        AND substr(l.start_date, 1, 4) = ?
+    ), 0) AS used,
 
-          COALESCE((
-            SELECT SUM(l.days)
-            FROM leaves l
-            WHERE l.type_id = t.id
-              AND l.employee_id = ?
-              AND l.status = 'Pending'
-              AND substr(l.start_date, 1, 4) = ?
-          ), 0) AS pending
+    COALESCE((
+      SELECT SUM(l.days)
+      FROM leaves l
+      WHERE l.type_id = t.id
+        AND l.employee_id = ?
+        AND l.status = 'Pending'
+        AND substr(l.start_date, 1, 4) = ?
+    ), 0) AS pending,
 
-        FROM leave_types t
-        ORDER BY t.id ASC
-        ''',
-        [emp, '$year', emp, '$year'],
-      ),
+    COALESCE((
+      SELECT json_group_array(
+        json_object(
+          'id', l.id,
+          'startDate', l.start_date,
+          'endDate', l.end_date,
+          'days', l.days,
+          'status', l.status,
+          'reason', l.reason
+        )
+      )
+      FROM leaves l
+      WHERE l.type_id = t.id
+        AND l.employee_id = ?
+        AND substr(l.start_date, 1, 4) = ?
+    ), '[]') AS applications
+
+  FROM leave_types t
+  ORDER BY t.id ASC
+  ''',
+      [emp, '$year', emp, '$year', emp, '$year'],
     );
     return raw.map((r) => LeaveBalanceEntity.fromMap(r)).toList();
   }
@@ -273,17 +291,15 @@ class LeaveRepository {
   // ============================================================
 
   double _workingDays(
-      DateTime start,
-      DateTime end,
-      Set<String> holidays,
-      ) {
+    DateTime start,
+    DateTime end,
+    Set<String> holidays,
+  ) {
     var total = 0.0;
 
-    for (
-    var date = DateTime(start.year, start.month, start.day);
-    !date.isAfter(DateTime(end.year, end.month, end.day));
-    date = date.add(const Duration(days: 1))
-    ) {
+    for (var date = DateTime(start.year, start.month, start.day);
+        !date.isAfter(DateTime(end.year, end.month, end.day));
+        date = date.add(const Duration(days: 1))) {
       final weekday = date.weekday <= DateTime.friday;
       final holiday = holidays.contains(_date(date));
 
@@ -298,14 +314,14 @@ class LeaveRepository {
   // ============================================================
 
   Future<String?> applyLeave(
-      int emp,
-      int typeId,
-      DateTime start,
-      DateTime end,
-      String reason, {
-        bool isHalfDay = false,
-        String? halfDayType,
-      }) async {
+    int emp,
+    int typeId,
+    DateTime start,
+    DateTime end,
+    String reason, {
+    bool isHalfDay = false,
+    String? halfDayType,
+  }) async {
     try {
       if (emp <= 0) return 'Invalid employee';
       if (typeId <= 0) return 'Invalid leave type';
@@ -327,7 +343,7 @@ class LeaveRepository {
 
       final types = await fetchLeaveTypes();
       final typeIndex = types.indexWhere(
-            (row) => row.id == typeId,
+        (row) => row.id == typeId,
       );
 
       if (typeIndex < 0) return 'Invalid leave type';
@@ -356,13 +372,8 @@ class LeaveRepository {
           continue;
         }
 
-        final oldStart = DateTime.tryParse(
-          leave.startDate,
-        );
-
-        final oldEnd = DateTime.tryParse(
-          leave.endDate,
-        );
+        final oldStart = DateTime.tryParse(leave.startDate);
+        final oldEnd = DateTime.tryParse(leave.endDate);
 
         if (oldStart == null || oldEnd == null) continue;
 
@@ -377,7 +388,7 @@ class LeaveRepository {
         final balanceList = await fetchBalances(emp, s.year);
 
         final balanceIndex = balanceList.indexWhere(
-              (row) => row.id == typeId,
+          (row) => row.id == typeId,
         );
 
         if (balanceIndex < 0) {
@@ -423,7 +434,6 @@ class LeaveRepository {
   // LEAVE REQUESTS
   // ============================================================
 
-
   Future<List<LeaveEntity>> leaves({
     bool mine = false,
     bool approvals = false,
@@ -438,7 +448,7 @@ class LeaveRepository {
     final raw = await Repo.queryOrLocal(
       'leaves',
       queryMap,
-          () async {
+      () async {
         final where = <String>[];
         final args = <Object?>[];
 
@@ -483,9 +493,7 @@ class LeaveRepository {
           where.add("l.status = 'Pending'");
         }
 
-        final whereSql = where.isEmpty
-            ? ''
-            : 'WHERE ${where.join(' AND ')}';
+        final whereSql = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';
 
         return Db.db.rawQuery(
           '''
@@ -509,26 +517,8 @@ class LeaveRepository {
       },
     );
 
-    // DEBUG: Check employee information returned by API/local DB.
-    for (final row in raw) {
-      debugPrint(
-        'LEAVE ID: ${row['id']} | '
-            'EMPLOYEE ID: ${row['employee_id']} | '
-            'EMPLOYEE NAME: ${row['emp_name']} | '
-            'EMPLOYEE CODE: ${row['emp_code']} | '
-            'DEPARTMENT: ${row['department']} | '
-            'LEAVE TYPE: ${row['type_name']}',
-      );
-    }
-
-    final result = raw.map((r) => LeaveEntity.fromMap(r)).toList();
-
-    debugPrint('TOTAL LEAVES LOADED: ${result.length}');
-    debugPrint('FIRST EMPLOYEE NAME: ${result.isNotEmpty ? result.first.empName : 'No leaves'}');
-
-    return result;
+    return raw.map((r) => LeaveEntity.fromMap(r)).toList();
   }
-
 
   Future<List<LeaveEntity>> fetchLeaves({
     bool mine = false,
@@ -554,7 +544,7 @@ class LeaveRepository {
     final rows = await fetchLeaves(mine: true);
 
     final index = rows.indexWhere(
-          (row) => row.id == id,
+      (row) => row.id == id,
     );
 
     if (index < 0) {
@@ -576,9 +566,9 @@ class LeaveRepository {
   // ============================================================
 
   Future<void> decideLeave(
-      LeaveEntity leave,
-      bool approve,
-      ) async {
+    LeaveEntity leave,
+    bool approve,
+  ) async {
     final id = leave.id;
 
     if (id == null || id <= 0) {
@@ -591,7 +581,7 @@ class LeaveRepository {
     );
 
     final index = currentRows.indexWhere(
-          (row) => row.id == id,
+      (row) => row.id == id,
     );
 
     if (index < 0) {
@@ -634,17 +624,17 @@ class LeaveRepository {
     final typeLower = (current.typeName ?? '').toLowerCase();
     if (typeLower.contains('home') || typeLower.contains('wfh')) {
       attendanceStatus = 'WFH';
-    } else if (typeLower.contains('field') || typeLower.contains('outside') || typeLower.contains('duty')) {
+    } else if (typeLower.contains('field') ||
+        typeLower.contains('outside') ||
+        typeLower.contains('duty')) {
       attendanceStatus = 'On Duty';
     } else {
       attendanceStatus = current.paid == 1 ? 'Leave' : 'Unpaid Leave';
     }
 
-    for (
-    var date = DateTime(start.year, start.month, start.day);
-    !date.isAfter(DateTime(end.year, end.month, end.day));
-    date = date.add(const Duration(days: 1))
-    ) {
+    for (var date = DateTime(start.year, start.month, start.day);
+        !date.isAfter(DateTime(end.year, end.month, end.day));
+        date = date.add(const Duration(days: 1))) {
       if (date.weekday > DateTime.friday) continue;
       if (holidays.contains(_date(date))) continue;
 

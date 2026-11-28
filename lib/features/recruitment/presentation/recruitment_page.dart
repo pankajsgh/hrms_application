@@ -2038,7 +2038,6 @@ class _RecruitmentFeaturePageState extends State<RecruitmentFeaturePage> {
         children: [
           const Header('Recruitment'),
           _statsRow(),
-          SizedBox(height: 12,),
           Row(
             children: [
               Expanded(

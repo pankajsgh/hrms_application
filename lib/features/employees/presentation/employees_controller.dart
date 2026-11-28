@@ -6,22 +6,28 @@ class EmployeesController extends ChangeNotifier {
   final EmployeesRepository _repository = EmployeesRepository();
 
   List<EmployeeEntity> rows = [];
-
   String searchQuery = '';
 
   bool isLoading = false;
   int _requestNumber = 0;
   bool _disposed = false;
 
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
+
+  // ============================================================
+  // LOAD EMPLOYEES
+  // ============================================================
+
   Future<void> loadEmployees() async {
     if (_disposed) return;
 
     final request = ++_requestNumber;
     isLoading = true;
-    notifyListeners();
+    _notify();
 
     try {
-
       final result = await _repository.fetchEmployees(
         q: searchQuery,
       );
@@ -29,13 +35,20 @@ class EmployeesController extends ChangeNotifier {
       if (_disposed || request != _requestNumber) return;
 
       rows = result;
+    } catch (e, stackTrace) {
+      debugPrint('EmployeesController.loadEmployees: $e');
+      debugPrintStack(stackTrace: stackTrace);
     } finally {
       if (!_disposed && request == _requestNumber) {
         isLoading = false;
-        notifyListeners();
+        _notify();
       }
     }
   }
+
+  // ============================================================
+  // SEARCH QUERY
+  // ============================================================
 
   void setSearchQuery(String query) {
     searchQuery = query.trim();
